@@ -8,4 +8,6 @@ gen() {
     abigen --bin bin/${package}.bin --abi abi/${package}.abi --pkg=${package} --out=${package}/${package}.go
 }
 
-gen eigendaverifiermanager
+gen polygonvalidium_xlayer
+gen polygonrollupmanager
+# gen eigendaverifiermanager
