@@ -1,7 +1,9 @@
 package etherman
 
 import (
+	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -41,6 +43,8 @@ type ethereumClient interface {
 	ethereum.TransactionSender
 	bind.DeployBackend
 }
+
+var ErrNotFound = errors.New("not found")
 
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
@@ -181,6 +185,32 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
+// getAuthByAddress tries to get an authorization from the authorizations map
+func (etherMan *Client) getAuthByAddress(addr common.Address) (bind.TransactOpts, error) {
+	auth, found := etherMan.auth[addr]
+	if !found {
+		return bind.TransactOpts{}, ErrNotFound
+	}
+	return auth, nil
+}
+
+// generateRandomAuth generates an authorization instance from a
+// randomly generated private key to be used to estimate gas for PoE
+// operations NOT restricted to the Trusted Sequencer
+func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a private key to estimate L1 txs")
+	}
+	chainID := big.NewInt(0).SetUint64(etherMan.l1Cfg.L1ChainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a fake authorization to estimate L1 txs")
+	}
+
+	return *auth, nil
+}
+
 // generateMockAuth generates an authorization instance from a randomly generated private key
 // to be used to estimate gas for PoE operations NOT restricted to the Trusted Sequencer
 func (etherMan *Client) generateMockAuth(sender common.Address) (bind.TransactOpts, error) {
@@ -208,4 +238,47 @@ func (etherMan *Client) generateMockAuth(sender common.Address) (bind.TransactOp
 		return tx.WithSignature(signer, signature)
 	}
 	return *auth, nil
+}
+
+// SendTx sends a tx to L1
+func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error {
+	return etherMan.EthClient.SendTransaction(ctx, tx)
+}
+
+// SignTx tries to sign a transaction accordingly to the provided sender
+func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	auth, err := etherMan.getAuthByAddress(sender)
+	if err == ErrNotFound {
+		return nil, ErrNotFound
+	}
+	signedTx, err := auth.Signer(auth.From, tx)
+	if err != nil {
+		return nil, err
+	}
+	return signedTx, nil
+}
+
+// CurrentNonce returns the current nonce for the provided account
+func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address) (uint64, error) {
+	return etherMan.EthClient.NonceAt(ctx, account, nil)
+}
+
+// CheckTxWasMined check if a tx was already mined
+func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error) {
+	receipt, err := etherMan.EthClient.TransactionReceipt(ctx, txHash)
+	if errors.Is(err, ethereum.NotFound) {
+		return false, nil, nil
+	} else if err != nil {
+		return false, nil, err
+	}
+	return true, receipt, nil
+}
+
+// SetDataAvailabilityProtocol sets the address for the new data availability protocol
+func (etherMan *Client) SetDataAvailabilityProtocol(from, daAddress common.Address) (*types.Transaction, error) {
+	auth, err := etherMan.getAuthByAddress(from)
+	if err != nil {
+		return nil, err
+	}
+	return etherMan.ZkEVM.SetDataAvailabilityProtocol(&auth, daAddress)
 }
