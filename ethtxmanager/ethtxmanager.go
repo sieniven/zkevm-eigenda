@@ -10,8 +10,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sieniven/polygoncdk-eigenda/etherman"
 )
 
@@ -30,18 +32,50 @@ var (
 	ErrExecutionReverted = errors.New("execution reverted")
 )
 
+type MonitoredTxsStorage struct {
+	inner map[string]monitoredTx
+	mutex *sync.RWMutex
+}
+
+func (s *MonitoredTxsStorage) GetByStatus(ctx context.Context, owner *string, statusesFilter []MonitoredTxStatus) ([]monitoredTx, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	mTxs := []monitoredTx{}
+	for sender, mTx := range s.inner {
+		if sender == *owner {
+			mTxs = append(mTxs, mTx)
+		} else {
+			for _, status := range statusesFilter {
+				if mTx.status == status {
+					mTxs = append(mTxs, mTx)
+				}
+			}
+		}
+	}
+	return mTxs, nil
+}
+
 type Client struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	cfg      Config
 	etherman etherman.Client
+	storage  MonitoredTxsStorage
 }
 
 // Factory method for a new eth tx manager instance
 func New(cfg Config, etherMan etherman.Client) *Client {
+	// Initialize monitored txs in-memory storage
+	s := MonitoredTxsStorage{
+		inner: map[string]monitoredTx{},
+		mutex: &sync.RWMutex{},
+	}
+
 	c := &Client{
 		cfg:      cfg,
 		etherman: etherMan,
+		storage:  s,
 	}
 	return c
 }
@@ -79,8 +113,44 @@ func (c *Client) logErrorAndWait(msg string, err error) {
 
 // monitorTxs process all pending monitored transactions
 func (c *Client) monitorTxs(ctx context.Context) error {
+	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent, MonitoredTxStatusReorged}
+	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter)
+	if err != nil {
+		return fmt.Errorf("failed to get created monitored txs: %v", err)
+	}
+	fmt.Printf("Found %v monitored tx to process\n", len(mTxs))
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(mTxs))
+	for _, mTx := range mTxs {
+		mTx := mTx // force variable shadowing to avoid pointer conflicts
+		go func(c *Client, mTx monitoredTx) {
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Printf("monitoring recovered from this err: %v\n", err)
+				}
+				wg.Done()
+			}()
+			c.monitorTx(ctx, mTx)
+		}(c, mTx)
+	}
+	wg.Wait()
+	return nil
 }
 
 // monitorTx does all the monitoring steps to the monitored tx
-func (c *Client) monitorTx(ctx context.Context, mtx monitoredTx) {
+func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
+	var err error
+	// check if any of the txs in the history was confirmed
+	var lastReceiptChecked types.Receipt
+	// monitored tx is confirmed until we find a successful receipt
+	confirmed := false
+	// monitored tx doesn't have a failed receipt until we find a failed receipt for any
+	// tx in the monitored tx history
+	hasFailedReceipts := false
+	// all history txs are considered mined until we can't find a receipt for any
+	// tx in the monitored tx history
+	allHistoryTxsWereMined := true
+	for txHash := range mTx.history {
+	}
 }
