@@ -33,12 +33,6 @@ const (
 	// status is Successful
 	MonitoredTxStatusConfirmed = MonitoredTxStatus("confirmed")
 
-	// MonitoredTxStatusReorged is used when a monitored tx was already confirmed but
-	// the L1 block where this tx was confirmed has been reorged, in this situation
-	// the caller needs to review this information and wait until it gets confirmed
-	// again in a future block
-	MonitoredTxStatusReorged = MonitoredTxStatus("reorged")
-
 	// MonitoredTxStatusDone means the tx was set by the owner as done
 	MonitoredTxStatusDone = MonitoredTxStatus("done")
 )

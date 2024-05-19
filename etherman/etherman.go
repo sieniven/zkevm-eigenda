@@ -8,11 +8,13 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonrollupmanager"
 	polygonzkevm "github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -252,6 +254,16 @@ func (etherMan *Client) generateMockAuth(sender common.Address) (bind.TransactOp
 	return *auth, nil
 }
 
+// GetTx function get ethereum tx
+func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+	return etherMan.EthClient.TransactionByHash(ctx, txHash)
+}
+
+// GetTxReceipt function gets ethereum tx receipt
+func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	return etherMan.EthClient.TransactionReceipt(ctx, txHash)
+}
+
 // GetL1GasPrice gets the l1 gas price
 func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
 	// Get gasPrice from providers
@@ -328,4 +340,84 @@ func (etherMan *Client) SetDataAvailabilityProtocol(from, daAddress common.Addre
 		return nil, err
 	}
 	return etherMan.ZkEVM.SetDataAvailabilityProtocol(&auth, daAddress)
+}
+
+// WaitTxToBeMined waits until a tx has been mined or the given timeout expires
+func (etherMan *Client) WaitTxToBeMined(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+	receipt, err := bind.WaitMined(ctx, etherMan.EthClient, tx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return false, nil
+	} else if err != nil {
+		fmt.Printf("error waiting tx %s to be mined: %w\n", tx.Hash(), err)
+		return false, err
+	}
+	if receipt.Status == types.ReceiptStatusFailed {
+		// Get revert reason
+		reason, reasonErr := RevertReason(ctx, etherMan.EthClient, tx, receipt.BlockNumber)
+		if reasonErr != nil {
+			reason = reasonErr.Error()
+		}
+		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
+	}
+	fmt.Printf("Transaction successfully mined: %v\n", tx.Hash())
+	return true, nil
+}
+
+// GetRevertMessage tries to get a revert message of a transaction
+func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transaction) (string, error) {
+	if tx == nil {
+		return "", nil
+	}
+
+	receipt, err := etherMan.GetTxReceipt(ctx, tx.Hash())
+	if err != nil {
+		return "", err
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		revertMessage, err := RevertReason(ctx, etherMan.EthClient, tx, receipt.BlockNumber)
+		if err != nil {
+			return "", err
+		}
+		return revertMessage, nil
+	}
+	return "", nil
+}
+
+// RevertReason returns the revert reason for a tx that has a receipt with failed status
+func RevertReason(ctx context.Context, c ethereumClient, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+	if tx == nil {
+		return "", nil
+	}
+
+	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
+	if err != nil {
+		signer := types.LatestSignerForChainID(tx.ChainId())
+		from, err = types.Sender(signer, tx)
+		if err != nil {
+			return "", err
+		}
+	}
+	msg := ethereum.CallMsg{
+		From: from,
+		To:   tx.To(),
+		Gas:  tx.Gas(),
+
+		Value: tx.Value(),
+		Data:  tx.Data(),
+	}
+	hex, err := c.CallContract(ctx, msg, blockNumber)
+	if err != nil {
+		return "", err
+	}
+
+	unpackedMsg, err := abi.UnpackRevert(hex)
+	if err != nil {
+		fmt.Printf("failed to get the revert message for tx %v: %v\n", tx.Hash(), err)
+		return "", errors.New("execution reverted")
+	}
+
+	return unpackedMsg, nil
 }

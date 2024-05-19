@@ -8,6 +8,9 @@ type Config struct {
 	// WaitTxToBeMined time to wait after transaction was sent to the ethereum
 	WaitTxToBeMined time.Duration `mapstructure:"WaitTxToBeMined"`
 
+	// ForcedGas is the amount of gas to be forced in case of gas estimation error
+	ForcedGas uint64 `mapstructure:"ForcedGas"`
+
 	// GasPriceMarginFactor is used to multiply the suggested gas price provided by the network
 	// in order to allow a different gas price to be set for all the transactions and making it
 	// easier to have the txs prioritized in the pool, default value is 1.

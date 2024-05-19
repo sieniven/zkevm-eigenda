@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sieniven/polygoncdk-eigenda/etherman"
 )
@@ -38,13 +40,32 @@ type MonitoredTxsStorage struct {
 	mutex *sync.RWMutex
 }
 
+func (s *MonitoredTxsStorage) Get(ctx context.Context, owner *string, id string) (monitoredTx, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	mTx, ok := s.inner[id]
+	if ok {
+		return mTx, nil
+	} else {
+		if owner != nil {
+			for _, mTx := range s.inner {
+				if mTx.owner == *owner {
+					return mTx, nil
+				}
+			}
+		}
+		return monitoredTx{}, ErrNotFound
+	}
+}
+
 func (s *MonitoredTxsStorage) GetByStatus(ctx context.Context, owner *string, statusesFilter []MonitoredTxStatus) ([]monitoredTx, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	mTxs := []monitoredTx{}
-	for sender, mTx := range s.inner {
-		if sender == *owner {
+	for _, mTx := range s.inner {
+		if owner != nil && mTx.owner == *owner {
 			mTxs = append(mTxs, mTx)
 		} else {
 			for _, status := range statusesFilter {
@@ -57,9 +78,16 @@ func (s *MonitoredTxsStorage) GetByStatus(ctx context.Context, owner *string, st
 	return mTxs, nil
 }
 
+func (s *MonitoredTxsStorage) Add(ctx context.Context, mTx monitoredTx) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.inner[mTx.id] = mTx
+	return nil
+}
+
 func (s *MonitoredTxsStorage) Update(ctx context.Context, mTx monitoredTx) error {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.inner[mTx.id] = mTx
 	return nil
 }
@@ -86,6 +114,130 @@ func New(cfg Config, etherMan etherman.Client) *Client {
 		storage:  s,
 	}
 	return c
+}
+
+// Add a transaction to be sent and monitored
+func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64) error {
+	// get next nonce
+	nonce, err := c.etherman.CurrentNonce(ctx, from)
+	if err != nil {
+		return fmt.Errorf("failed to get current nonce: %w", err)
+	}
+	// get gas
+	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
+	if err != nil {
+		err := fmt.Errorf("failed to estimate gas: %w, data: %v", err, common.Bytes2Hex(data))
+		if c.cfg.ForcedGas > 0 {
+			gas = c.cfg.ForcedGas
+		} else {
+			return err
+		}
+	}
+
+	// get gas price
+	gasPrice, err := c.suggestedGasPrice(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get suggested gas price: %w", err)
+	}
+
+	// create monitored tx
+	mTx := monitoredTx{
+		owner: owner, id: id, from: from, to: to,
+		nonce: nonce, value: value, data: data,
+		gas: gas, gasOffset: gasOffset, gasPrice: gasPrice,
+		status: MonitoredTxStatusCreated,
+	}
+
+	// add to storage
+	err = c.storage.Add(ctx, mTx)
+	if err != nil {
+		return fmt.Errorf("failed to add tx to get monitored: %w", err)
+	}
+	fmt.Printf("created monitored tx: %v", mTx.id)
+	return nil
+}
+
+// ResultsByStatus returns all the results for all the monitored txs related to the owner and matching the provided statuses
+// if the statuses are empty, all the statuses are considered.
+//
+// the slice is returned is in order by created_at field ascending
+func (c *Client) ResultsByStatus(ctx context.Context, owner string, statuses []MonitoredTxStatus) ([]MonitoredTxResult, error) {
+	mTxs, err := c.storage.GetByStatus(ctx, &owner, statuses)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]MonitoredTxResult, 0, len(mTxs))
+
+	for _, mTx := range mTxs {
+		result, err := c.buildResult(ctx, mTx)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+// Result returns the current result of the transaction execution with all the details
+func (c *Client) Result(ctx context.Context, owner, id string) (MonitoredTxResult, error) {
+	mTx, err := c.storage.Get(ctx, &owner, id)
+	if err != nil {
+		return MonitoredTxResult{}, err
+	}
+
+	return c.buildResult(ctx, mTx)
+}
+
+// SetStatusDone sets the status of a monitored tx to MonitoredStatusDone.
+// this method is provided to the callers to decide when a monitored tx should be
+// considered done, so they can start to ignore it when querying it by Status.
+func (c *Client) setStatusDone(ctx context.Context, owner, id string) error {
+	mTx, err := c.storage.Get(ctx, &owner, id)
+	if err != nil {
+		return err
+	}
+
+	mTx.status = MonitoredTxStatusDone
+
+	return c.storage.Update(ctx, mTx)
+}
+
+func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxResult, error) {
+	history := mTx.historyHashSlice()
+	txs := make(map[common.Hash]TxResult, len(history))
+
+	for _, txHash := range history {
+		tx, _, err := c.etherman.GetTx(ctx, txHash)
+		if !errors.Is(err, ethereum.NotFound) && err != nil {
+			return MonitoredTxResult{}, err
+		}
+
+		receipt, err := c.etherman.GetTxReceipt(ctx, txHash)
+		if !errors.Is(err, ethereum.NotFound) && err != nil {
+			return MonitoredTxResult{}, err
+		}
+
+		revertMessage, err := c.etherman.GetRevertMessage(ctx, tx)
+		if !errors.Is(err, ethereum.NotFound) && err != nil && err.Error() != ErrExecutionReverted.Error() {
+			return MonitoredTxResult{}, err
+		}
+
+		txs[txHash] = TxResult{
+			Tx:            tx,
+			Receipt:       receipt,
+			RevertMessage: revertMessage,
+		}
+	}
+
+	result := MonitoredTxResult{
+		ID:     mTx.id,
+		Status: mTx.status,
+		Txs:    txs,
+	}
+
+	return result, nil
 }
 
 // Start will start the tx management, reading txs from the storage and
@@ -121,7 +273,7 @@ func (c *Client) logErrorAndWait(msg string, err error) {
 
 // monitorTxs process all pending monitored transactions
 func (c *Client) monitorTxs(ctx context.Context) error {
-	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent, MonitoredTxStatusReorged}
+	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent}
 	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter)
 	if err != nil {
 		return fmt.Errorf("failed to get created monitored txs: %v", err)
@@ -148,7 +300,6 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 // monitorTx does all the monitoring steps to the monitored tx
 func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
-	var err error
 	// check if any of the txs in the history was confirmed
 	var lastReceiptChecked types.Receipt
 	// monitored tx is confirmed until we find a successful receipt
@@ -182,7 +333,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// If the tx was mined but failed, we continue to consider it was not confirmed
 		// and set that we found a failed receipt. This info will be used later to check
 		// if nonce needs to be reviewed
-		confirmed = true
+		confirmed = false
 		hasFailedReceipts = true
 	}
 
@@ -225,25 +376,148 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 	// }
 
 	var signedTx *types.Transaction
+	var err error
 	if !confirmed {
-		// review tx and increase gas and gas price if needed
 		// review tx and increase gas and gas price if needed
 		if mTx.status == MonitoredTxStatusSent {
 			err := c.reviewMonitoredTx(ctx, &mTx)
 			if err != nil {
-				fmt.Errorf("failed to review monitored tx: %v", err)
+				fmt.Printf("failed to review monitored tx: %v\n", err)
 				return
 			}
 			err = c.storage.Update(ctx, mTx)
 			if err != nil {
-				fmt.Errorf("failed to update monitored tx review change: %v", err)
+				fmt.Printf("failed to update monitored tx review change: %v\n", err)
 				return
 			}
 		}
 
 		// rebuild transaction
-		// TODO: continue
+		tx := mTx.Tx()
+		fmt.Printf("unsigned tx %v created\n", tx.Hash().String())
+
+		// sign tx
+		signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)
+		if err != nil {
+			fmt.Printf("failed to sign tx %v: %v", tx.Hash().String(), err)
+			return
+		}
+
+		// add tx to monitored tx history
+		err = mTx.AddHistory(signedTx)
+		if errors.Is(err, ErrAlreadyExists) {
+			fmt.Println("signed tx already existed in the history")
+		} else if err != nil {
+			fmt.Printf("failed to add signed tx %v to monitored tx history: %v\n", signedTx.Hash().String(), err)
+			return
+		} else {
+			// Update monitored tx changes into storage
+			err = c.storage.Update(ctx, mTx)
+			if err != nil {
+				fmt.Printf("failed to update monitored tx: %v\n", err)
+				return
+			}
+			fmt.Println("signed tx added to the monitored tx history")
+		}
+
+		// Check if the tx is already in the network. If not, send it
+		_, _, err = c.etherman.GetTx(ctx, signedTx.Hash())
+		// if not found, send it tx to the network
+		if errors.Is(err, ethereum.NotFound) {
+			fmt.Println("signed tx not found in the network")
+			err := c.etherman.SendTx(ctx, signedTx)
+			if err != nil {
+				fmt.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
+				return
+			}
+			fmt.Printf("signed tx sent to the network: %v\n", signedTx.Hash().String())
+			if mTx.status == MonitoredTxStatusCreated {
+				// update tx status to sent
+				mTx.status = MonitoredTxStatusSent
+				fmt.Printf("status changed to %v\n", string(mTx.status))
+				// update monitored tx changes into storage
+				err = c.storage.Update(ctx, mTx)
+				if err != nil {
+					fmt.Printf("failed to update monitored tx changes: %v\n", err)
+					return
+				}
+			}
+		} else {
+			fmt.Println("signed tx already found in the network")
+		}
+
+		fmt.Println("waiting signedTx to be mined...")
+
+		// wait tx to get mined
+		confirmed, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined)
+		if err != nil {
+			fmt.Errorf("failed to wait tx to be mined: %v", err)
+			return
+		}
+		if !confirmed {
+			fmt.Println("signedTx not mined yet and timeout has been reached")
+			return
+		}
+
+		// get tx receipt
+		var txReceipt *types.Receipt
+		txReceipt, err = c.etherman.GetTxReceipt(ctx, signedTx.Hash())
+		if err != nil {
+			fmt.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
+			return
+		}
+		lastReceiptChecked = *txReceipt
+
+		// if mined, check receipt and mark as Failed or Confirmed
+		if lastReceiptChecked.Status == types.ReceiptStatusSuccessful {
+			mTx.status = MonitoredTxStatusConfirmed
+			mTx.blockNumber = lastReceiptChecked.BlockNumber
+			fmt.Printf("Tx hash %v confirmed", signedTx.Hash())
+		} else {
+			// if we should continue to monitor, we move to the next one and this will
+			// be reviewed in the next monitoring cycle
+			if c.shouldContinueToMonitorThisTx(ctx, lastReceiptChecked) {
+				return
+			}
+			// otherwise we understand this monitored tx has failed
+			mTx.status = MonitoredTxStatusFailed
+			mTx.blockNumber = lastReceiptChecked.BlockNumber
+			fmt.Printf("Tx hash %v failed", signedTx.Hash())
+		}
+
+		// update monitored tx changes into storage
+		err = c.storage.Update(ctx, mTx)
+		if err != nil {
+			fmt.Printf("failed to update monitored tx: %v\n", err)
+			return
+		}
 	}
+}
+
+// shouldContinueToMonitorThisTx checks the the tx receipt and decides if it should
+// continue or not to monitor the monitored tx related to the tx from this receipt
+func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt types.Receipt) bool {
+	// if the receipt has a is successful result, stop monitoring
+	if receipt.Status == types.ReceiptStatusSuccessful {
+		return false
+	}
+
+	tx, _, err := c.etherman.GetTx(ctx, receipt.TxHash)
+	if err != nil {
+		fmt.Printf("failed to get tx when monitored tx identified as failed, tx : %v: %v\n", receipt.TxHash.String(), err)
+		return false
+	}
+	_, err = c.etherman.GetRevertMessage(ctx, tx)
+	if err != nil {
+		// if the error when getting the revert message is not identified, continue to monitor
+		if err.Error() == ErrExecutionReverted.Error() {
+			return true
+		} else {
+			fmt.Printf("failed to get revert message for monitored tx identified as failed, tx %v: %v\n", receipt.TxHash.String(), err)
+		}
+	}
+	// if nothing weird was found, stop monitoring
+	return false
 }
 
 // reviewMonitoredTxNonce checks if the nonce needs to be updated accordingly to the current
