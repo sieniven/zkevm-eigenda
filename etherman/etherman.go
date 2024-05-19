@@ -21,6 +21,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+type externalGasProviders struct {
+	MultiGasProvider bool
+	Providers        []ethereum.GasPricer
+}
+
 // Minimal implementation of PolygonCDK's ether manager
 type Client struct {
 	EthClient     ethereumClient
@@ -28,6 +33,7 @@ type Client struct {
 	RollupManager *polygonrollupmanager.Polygonrollupmanager
 	SCAddresses   []common.Address
 	RollupID      uint32
+	GasProviders  externalGasProviders
 	l1Cfg         L1Config
 	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
@@ -79,6 +85,8 @@ func NewClient(url string, l1Config L1Config) (*Client, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.EigenDAVerifierManagerAddr)
 
+	gProviders := []ethereum.GasPricer{ethClient}
+
 	// get RollupID
 	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
@@ -91,8 +99,12 @@ func NewClient(url string, l1Config L1Config) (*Client, error) {
 		RollupManager: rollupManager,
 		SCAddresses:   scAddresses,
 		RollupID:      rollupID,
-		l1Cfg:         l1Config,
-		auth:          map[common.Address]bind.TransactOpts{},
+		GasProviders: externalGasProviders{
+			MultiGasProvider: false,
+			Providers:        gProviders,
+		},
+		l1Cfg: l1Config,
+		auth:  map[common.Address]bind.TransactOpts{},
 	}, nil
 }
 
@@ -240,6 +252,22 @@ func (etherMan *Client) generateMockAuth(sender common.Address) (bind.TransactOp
 	return *auth, nil
 }
 
+// GetL1GasPrice gets the l1 gas price
+func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
+	// Get gasPrice from providers
+	gasPrice := big.NewInt(0)
+	for i, prov := range etherMan.GasProviders.Providers {
+		gp, err := prov.SuggestGasPrice(ctx)
+		if err != nil {
+			fmt.Printf("error getting gas price from provider %d. Error: %s\n", i+1, err.Error())
+		} else if gasPrice.Cmp(gp) == -1 { // gasPrice < gp
+			gasPrice = gp
+		}
+	}
+	fmt.Println("gasPrice chose: ", gasPrice)
+	return gasPrice
+}
+
 // SendTx sends a tx to L1
 func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error {
 	return etherMan.EthClient.SendTransaction(ctx, tx)
@@ -261,6 +289,25 @@ func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *t
 // CurrentNonce returns the current nonce for the provided account
 func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address) (uint64, error) {
 	return etherMan.EthClient.NonceAt(ctx, account, nil)
+}
+
+// SuggestedGasPrice returns the suggest nonce for the network at the moment
+func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error) {
+	suggestedGasPrice := etherMan.GetL1GasPrice(ctx)
+	if suggestedGasPrice.Cmp(big.NewInt(0)) == 0 {
+		return nil, errors.New("failed to get the suggested gas price")
+	}
+	return suggestedGasPrice, nil
+}
+
+// EstimateGas returns the estimated gas for the tx
+func (etherMan *Client) EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error) {
+	return etherMan.EthClient.EstimateGas(ctx, ethereum.CallMsg{
+		From:  from,
+		To:    to,
+		Value: value,
+		Data:  data,
+	})
 }
 
 // CheckTxWasMined check if a tx was already mined

@@ -55,6 +55,9 @@ type monitoredTx struct {
 	// id is the tx identifier controlled by the caller
 	id string
 
+	// sender of the tx, used to identify which private key should be used to sign the tx
+	from common.Address
+
 	// receiver of the tx
 	to *common.Address
 

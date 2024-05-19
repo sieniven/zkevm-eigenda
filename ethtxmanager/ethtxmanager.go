@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -54,6 +55,13 @@ func (s *MonitoredTxsStorage) GetByStatus(ctx context.Context, owner *string, st
 		}
 	}
 	return mTxs, nil
+}
+
+func (s *MonitoredTxsStorage) Update(ctx context.Context, mTx monitoredTx) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	s.inner[mTx.id] = mTx
+	return nil
 }
 
 type Client struct {
@@ -152,5 +160,164 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 	// tx in the monitored tx history
 	allHistoryTxsWereMined := true
 	for txHash := range mTx.history {
+		mined, receipt, err := c.etherman.CheckTxWasMined(ctx, txHash)
+		if err != nil {
+			fmt.Printf("failed to check if tx %v was mined: %v\n", txHash.String(), err)
+			continue
+		}
+
+		// If the tx is not mined yet, check that not all the tx were mined and go to the next
+		if !mined {
+			allHistoryTxsWereMined = false
+			continue
+		}
+		lastReceiptChecked = *receipt
+
+		// If the tx was mined successfully then we can set it as confirmed and break the loop
+		if lastReceiptChecked.Status == types.ReceiptStatusSuccessful {
+			confirmed = true
+			break
+		}
+
+		// If the tx was mined but failed, we continue to consider it was not confirmed
+		// and set that we found a failed receipt. This info will be used later to check
+		// if nonce needs to be reviewed
+		confirmed = true
+		hasFailedReceipts = true
 	}
+
+	// We need to check if we need to review the nonce carefully, to avoid sending duplicate data
+	// to the roll-up and causing unnecessary trusted state reorg.
+	//
+	// If we have failed receipts, this means at least one of the generated txs was mined.
+	// In this case, maybe the curent nonce was already consumed (if this is the first iteration of
+	// this cycle, next iteration might have the nonce already updated by the previous one), then
+	// we need to check if there are tx that were not mined yet.
+	//
+	// If so, we just need to wait because maybe one of them will get mined successfully.
+	if !confirmed && hasFailedReceipts && allHistoryTxsWereMined {
+		fmt.Println("nonce needs to be updated")
+		err := c.reviewMonitoredTxNonce(ctx, &mTx)
+		if err != nil {
+			fmt.Printf("failed to review monitored tx nonce: %v\n", err)
+			return
+		}
+		err = c.storage.Update(ctx, mTx)
+		if err != nil {
+			fmt.Printf("failed to update the monitored tx nonce change: %v\n", err)
+			return
+		}
+	}
+
+	// If the history size reaches the max history size, this means that something is really wrong
+	// with this tx and we are not able to identify automatically, so we can mark this as failed to
+	// let the caller know something is not right and needs to be reviewed. We also do not want to
+	// be reviewing and monitoring this tx indefinitely.
+	// if len(mTx.history) == maxHistorySize {
+	// 	mTx.status = MonitoredTxStatusFailed
+	// 	fmt.Printf("marked as failed because reached the history size limit: %v", err)
+	// 	// update monitored tx changes into storage
+	// 	err = c.storage.Update(ctx, mTx)
+	// 	if err != nil {
+	// 		fmt.Printf("failed to update monitored tx when max history size limit reached: %v", err)
+	// 		continue
+	// 	}
+	// }
+
+	var signedTx *types.Transaction
+	if !confirmed {
+		// review tx and increase gas and gas price if needed
+		// review tx and increase gas and gas price if needed
+		if mTx.status == MonitoredTxStatusSent {
+			err := c.reviewMonitoredTx(ctx, &mTx)
+			if err != nil {
+				fmt.Errorf("failed to review monitored tx: %v", err)
+				return
+			}
+			err = c.storage.Update(ctx, mTx)
+			if err != nil {
+				fmt.Errorf("failed to update monitored tx review change: %v", err)
+				return
+			}
+		}
+
+		// rebuild transaction
+		// TODO: continue
+	}
+}
+
+// reviewMonitoredTxNonce checks if the nonce needs to be updated accordingly to the current
+// nonce of the sender account.
+//
+// IMPORTANT: Nonce is reviewed apart from the other fields because it is a very sensible
+// information and can make duplicated data to be sent to the blockchain, causing possible
+// side effects and wasting resources.
+func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) error {
+	fmt.Println("reviewing nonce")
+	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
+	if err != nil {
+		err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
+		return err
+	}
+	if nonce > mTx.nonce {
+		fmt.Printf("monitored tx nonce updated from %v to %v", mTx.nonce, nonce)
+		mTx.nonce = nonce
+	}
+	return nil
+}
+
+// reviewMonitoredTx checks if some field needs to be updated accordingly to the current
+// information stored and the current state of the blockchain
+func (c *Client) reviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error {
+	fmt.Println("reviewing")
+	// get gas
+	gas, err := c.etherman.EstimateGas(ctx, mTx.from, mTx.to, mTx.value, mTx.data)
+	if err != nil {
+		err := fmt.Errorf("failed to estimate gas: %w", err)
+		return err
+	}
+
+	// check gas
+	if gas > mTx.gas {
+		fmt.Printf("monitored tx gas updated from %v to %v\n", mTx.gas, gas)
+		mTx.gas = gas
+	}
+
+	// get gas price
+	gasPrice, err := c.suggestedGasPrice(ctx)
+	if err != nil {
+		err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		return err
+	}
+
+	// check gas price
+	if gasPrice.Cmp(mTx.gasPrice) == 1 {
+		fmt.Printf("monitored tx gas price updated from %v to %v\n", mTx.gasPrice.String(), gasPrice.String())
+		mTx.gasPrice = gasPrice
+	}
+	return nil
+}
+
+func (c *Client) suggestedGasPrice(ctx context.Context) (*big.Int, error) {
+	// get gas price
+	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// adjust the gas price by the margin factor
+	marginFactor := big.NewFloat(0).SetFloat64(c.cfg.GasPriceMarginFactor)
+	fGasPrice := big.NewFloat(0).SetInt(gasPrice)
+	adjustedGasPrice, _ := big.NewFloat(0).Mul(fGasPrice, marginFactor).Int(big.NewInt(0))
+
+	// if there is a max gas price limit configured and the current
+	// adjusted gas price is over this limit, set the gas price as the limit
+	if c.cfg.MaxGasPriceLimit > 0 {
+		maxGasPrice := big.NewInt(0).SetUint64(c.cfg.MaxGasPriceLimit)
+		if adjustedGasPrice.Cmp(maxGasPrice) == 1 {
+			adjustedGasPrice.Set(maxGasPrice)
+		}
+	}
+
+	return adjustedGasPrice, nil
 }
