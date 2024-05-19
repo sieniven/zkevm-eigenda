@@ -427,7 +427,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 			fmt.Println("signed tx not found in the network")
 			err := c.etherman.SendTx(ctx, signedTx)
 			if err != nil {
-				fmt.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
+				fmt.Printf("failed to send tx %v to network: %v\n", signedTx.Hash().String(), err)
 				return
 			}
 			fmt.Printf("signed tx sent to the network: %v\n", signedTx.Hash().String())
@@ -451,7 +451,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// wait tx to get mined
 		confirmed, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined)
 		if err != nil {
-			fmt.Errorf("failed to wait tx to be mined: %v", err)
+			fmt.Printf("failed to wait tx to be mined: %v\n", err)
 			return
 		}
 		if !confirmed {
@@ -463,7 +463,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		var txReceipt *types.Receipt
 		txReceipt, err = c.etherman.GetTxReceipt(ctx, signedTx.Hash())
 		if err != nil {
-			fmt.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
+			fmt.Printf("failed to get tx receipt for tx %v: %v\n", signedTx.Hash().String(), err)
 			return
 		}
 		lastReceiptChecked = *txReceipt
