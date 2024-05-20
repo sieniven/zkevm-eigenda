@@ -38,6 +38,7 @@ type Client struct {
 	RollupID      uint32
 	GasProviders  externalGasProviders
 	l1Cfg         L1Config
+	cfg           Config
 	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
 
@@ -67,11 +68,11 @@ type L1Config struct {
 	EigenDAVerifierManagerAddr common.Address `json:"eigenDAVerifierManagerAddress"`
 }
 
-func NewClient(url string, l1Config L1Config) (*Client, error) {
+func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(url)
+	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
-		fmt.Printf("error connecting to %s: %+v\n", url, err)
+		fmt.Printf("error connecting to %s: %+v\n", cfg.URL, err)
 		return nil, err
 	}
 	// Create smc clients
@@ -107,6 +108,7 @@ func NewClient(url string, l1Config L1Config) (*Client, error) {
 			Providers:        gProviders,
 		},
 		l1Cfg: l1Config,
+		cfg:   cfg,
 		auth:  map[common.Address]bind.TransactOpts{},
 	}, nil
 }
@@ -368,7 +370,7 @@ func (etherMan *Client) WaitTxToBeMined(parentCtx context.Context, tx *types.Tra
 	if errors.Is(err, context.DeadlineExceeded) {
 		return false, nil
 	} else if err != nil {
-		fmt.Printf("error waiting tx %s to be mined: %w\n", tx.Hash(), err)
+		fmt.Printf("error waiting tx %s to be mined: %v\n", tx.Hash(), err)
 		return false, err
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
