@@ -12,6 +12,7 @@ import (
 
 	"github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonrollupmanager"
 	polygonzkevm "github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
+	ethmanTypes "github.com/sieniven/polygoncdk-eigenda/etherman/types"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -110,8 +111,24 @@ func NewClient(url string, l1Config L1Config) (*Client, error) {
 	}, nil
 }
 
+// EstimateGasSequenceBatchesXLayer estimates gas for sending batches
+func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	opts, err := etherMan.generateMockAuth(sender)
+	if err == ErrNotFound {
+		return nil, errors.New("can't find sender private key to sign tx")
+	}
+	opts.NoSend = true
+
+	tx, err := etherMan.sequenceBatches(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
 // Mock function to replicate BuildSequenceBatchesTxData on PolygonCDK.
-func (etherMan *Client) BuildMockSequenceBatchesTxData(sender common.Address, sequenceNum int, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
+func (etherMan *Client) BuildMockSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.generateMockAuth(sender)
 	if err != nil {
 		return nil, nil, err
@@ -122,7 +139,7 @@ func (etherMan *Client) BuildMockSequenceBatchesTxData(sender common.Address, se
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	tx, err := etherMan.sequenceBatches(opts, sequenceNum, dataAvailabilityMessage)
+	tx, err := etherMan.sequenceBatches(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -131,22 +148,23 @@ func (etherMan *Client) BuildMockSequenceBatchesTxData(sender common.Address, se
 
 // Mock function to replicate sequenceBatches on PolygonCDK
 // We will generate randomized []bytes to be sent to the mock PoE SC method SequenceBatchesValidium.
-func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequenceNum int, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	data := []byte("hihihihihihihihihihihihihihihihihihi")
-	var defaultHash common.Hash
-	var defaultAddr common.Address
-
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
-	for idx := 0; idx < sequenceNum; idx++ {
-		batch := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
-			TransactionsHash:     crypto.Keccak256Hash(data),
-			ForcedGlobalExitRoot: defaultHash,
-			ForcedTimestamp:      uint64(0),
-			ForcedBlockHashL1:    defaultHash,
+	for _, seq := range sequences {
+		var ger common.Hash
+		if seq.ForcedBatchTimestamp > 0 {
+			ger = seq.GlobalExitRoot
 		}
+		batch := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
+			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
+			ForcedGlobalExitRoot: ger,
+			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
+			ForcedBlockHashL1:    seq.PrevBlockHash,
+		}
+
 		batches = append(batches, batch)
 	}
-	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, uint64(0), uint64(0), defaultAddr, dataAvailabilityMessage)
+	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		fmt.Println("sequenceBatches failed")
 	}
