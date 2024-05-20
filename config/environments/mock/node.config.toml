@@ -1,0 +1,15 @@
+[Etherman]
+URL = "http://your.L1node.url"
+
+[EthTxManager]
+FrequencyToMonitorTxs = "1s"
+WaitTxToBeMined = "2m"
+ForcedGas = 0
+GasPriceMarginFactor = 1.1
+MaxGasPriceLimit = 0
+
+[SequenceSender]
+WaitPeriodSendSequence = "5s"
+MaxTxSizeForL1 = 131072
+L2Coinbase= "0xD6DdA5AA7749142B7fDa3Fe4662C9f346101B8A6"
+MaxBatchesForL1 = 20
