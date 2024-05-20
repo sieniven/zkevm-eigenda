@@ -595,3 +595,76 @@ func (c *Client) suggestedGasPrice(ctx context.Context) (*big.Int, error) {
 
 	return adjustedGasPrice, nil
 }
+
+// ResultHandler used by the caller to handle results when processing monitored txs
+type ResultHandler func(MonitoredTxResult)
+
+// ProcessPendingMonitoredTxs will check all monitored txs of this owner and wait until
+// all of them are either confirmed or failed before confirming
+//
+// For the confirmed and failed ones, the resultHandler will be triggered
+func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, resultHandler ResultHandler) {
+	statusesFilter := []MonitoredTxStatus{
+		MonitoredTxStatusCreated,
+		MonitoredTxStatusSent,
+		MonitoredTxStatusFailed,
+		MonitoredTxStatusConfirmed,
+	}
+	// Keep running until there are pending monitored txs
+	for {
+		results, err := c.ResultsByStatus(ctx, owner, statusesFilter)
+		if err != nil {
+			// If something goes wrong here, we log and wait for abit and keep it in the infinite loop to not
+			// unlock the caller.
+			fmt.Printf("failed to get results by statuses from eth tx manager to monitored txs err: %v\n", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		if len(results) == 0 {
+			// if there are not pending monitored txs, stop
+			return
+		}
+
+		for _, result := range results {
+			// If the result is confirmed, we set it as done. We do not stop looking into the current
+			// monitored tx
+			if result.Status == MonitoredTxStatusConfirmed {
+				err := c.setStatusDone(ctx, owner, result.ID)
+				if err != nil {
+					fmt.Printf("failed to set monitored tx as done, err: %v\n", err)
+					continue
+				} else {
+					fmt.Println("monitored tx confirmed")
+				}
+				resultHandler(result)
+				continue
+			}
+
+			// If the result is failed, we need to go around it and rebuild a batch verificataion
+			if result.Status == MonitoredTxStatusFailed {
+				resultHandler(result)
+				continue
+			}
+
+			// If the result is neither confirmed or failed, it means we need to wait until it gets
+			// confirmed or failed.
+			for {
+				// wait before refreshing the result info
+				time.Sleep(time.Second)
+
+				// refresh the result info
+				result, err := c.Result(ctx, owner, result.ID)
+				if err != nil {
+					fmt.Printf("failed to get monitored tx result, err: %v\n", err)
+					continue
+				}
+				// if the result status is confirmed or failed, breaks the wait loop
+				if result.Status == MonitoredTxStatusConfirmed || result.Status == MonitoredTxStatusFailed {
+					break
+				}
+				fmt.Printf("waiting for monitored tx to get confirmed, status: %v\n", result.Status.String())
+			}
+		}
+	}
+}
