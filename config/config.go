@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"xlayerda/config"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sieniven/polygoncdk-eigenda/etherman"
@@ -26,6 +27,8 @@ type Config struct {
 	Etherman       etherman.Config
 	EthTxManager   ethtxmanager.Config
 	SequenceSender sequencesender.Config
+	L1Config       etherman.L1Config         `mapstructure:"L1Config"`
+	Key            config.KeystoreFileConfig `mapstructure:"Key"`
 }
 
 // Default parses the default configuration values
@@ -85,6 +88,9 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Get L1Config parameters
+	cfg.loadNetworkConfig()
 
 	return cfg, nil
 }

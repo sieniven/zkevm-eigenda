@@ -19,17 +19,17 @@ const (
 
 type SequenceSender struct {
 	cfg              Config
-	ethTxManager     ethtxmanager.Client
-	etherman         etherman.Client
+	ethTxManager     *ethtxmanager.Client
+	etherman         *etherman.Client
 	sendSequenceFlag atomic.Bool
 	lastBatchNum     uint64
 
 	// data availability layer
-	da dataAbilitier
+	da DataAvaibilityProvider
 }
 
 // New inits sequence sender
-func New(cfg Config, etherman etherman.Client, manager ethtxmanager.Client) (*SequenceSender, error) {
+func New(cfg Config, etherman *etherman.Client, manager *ethtxmanager.Client) (*SequenceSender, error) {
 	s := SequenceSender{
 		cfg:          cfg,
 		etherman:     etherman,
@@ -39,6 +39,12 @@ func New(cfg Config, etherman etherman.Client, manager ethtxmanager.Client) (*Se
 	s.sendSequenceFlag.Store(false)
 
 	return &s, nil
+}
+
+func (s *SequenceSender) SendSequenceHandle(ctx context.Context) {
+	for {
+		// TODO: run a client directly that listens for flag switches
+	}
 }
 
 func (s *SequenceSender) Start(ctx context.Context) {
@@ -141,4 +147,9 @@ func (s *SequenceSender) getMockSequencesToSend(numSequences int) ([]types.Seque
 
 	fmt.Println("sequences should be sent to L1, too long since didnt send anything to L1")
 	return sequences, nil
+}
+
+// SetDataProvider sets the data provider
+func (s *SequenceSender) SetDataProvider(da DataAvaibilityProvider) {
+	s.da = da
 }

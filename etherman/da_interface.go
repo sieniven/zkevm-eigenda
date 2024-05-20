@@ -1,4 +1,4 @@
-package sequencesender
+package etherman
 
 import (
 	"context"

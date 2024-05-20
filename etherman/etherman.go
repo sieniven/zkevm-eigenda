@@ -40,6 +40,7 @@ type Client struct {
 	l1Cfg         L1Config
 	cfg           Config
 	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
+	da            DataAvaibilityProvider
 }
 
 type ethereumClient interface {
@@ -383,6 +384,12 @@ func (etherMan *Client) WaitTxToBeMined(parentCtx context.Context, tx *types.Tra
 	}
 	fmt.Printf("Transaction successfully mined: %v\n", tx.Hash())
 	return true, nil
+}
+
+// SetDataProvider sets the data provider
+func (etherMan *Client) SetDataProvider(da DataAvaibilityProvider) {
+	fmt.Println("setting data provider")
+	etherMan.da = da
 }
 
 // GetRevertMessage tries to get a revert message of a transaction

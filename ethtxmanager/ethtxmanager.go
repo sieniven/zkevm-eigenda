@@ -96,12 +96,12 @@ type Client struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	cfg      Config
-	etherman etherman.Client
+	etherman *etherman.Client
 	storage  MonitoredTxsStorage
 }
 
 // Factory method for a new eth tx manager instance
-func New(cfg Config, etherMan etherman.Client) *Client {
+func New(cfg Config, etherMan *etherman.Client) *Client {
 	// Initialize monitored txs in-memory storage
 	s := MonitoredTxsStorage{
 		inner: map[string]monitoredTx{},
