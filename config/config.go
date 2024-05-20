@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -11,8 +12,9 @@ import (
 	"github.com/sieniven/polygoncdk-eigenda/sequencesender"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/appengine/log"
 )
+
+const FlagCfg = "cfg"
 
 // Represents the configuration of the entire mock Polygon CDK Node
 // The file is [TOML format]
@@ -48,7 +50,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	configFilePath := ctx.String("cfg")
+	configFilePath := ctx.String(FlagCfg)
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
 
@@ -67,9 +69,9 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		_, ok := err.(viper.ConfigFileNotFoundError)
 		if ok {
-			log.Infof("config file not found")
+			fmt.Println("config file not found")
 		} else {
-			log.Infof("error reading config file: ", err)
+			fmt.Println("error reading config file: ", err)
 			return nil, err
 		}
 	}
