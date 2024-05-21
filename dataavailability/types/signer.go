@@ -1,4 +1,4 @@
-package dataavailability
+package types
 
 import "github.com/Layr-Labs/eigenda/core"
 

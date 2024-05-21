@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/sieniven/zkevm-eigenda/config/types"
+	daTypes "github.com/sieniven/zkevm-eigenda/dataavailability/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +22,7 @@ func TestClientDisperseBlob(t *testing.T) {
 		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
-	signer := MockBlobRequestSigner{}
+	signer := daTypes.MockBlobRequestSigner{}
 	client := NewDisperserClient(&cfg, signer)
 
 	// Define Different DataSizes
@@ -51,7 +53,7 @@ func TestClientDisperseBlockAndGetBlobConfirmation(t *testing.T) {
 		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
-	signer := MockBlobRequestSigner{}
+	signer := daTypes.MockBlobRequestSigner{}
 	client := NewDisperserClient(&cfg, signer)
 
 	// Define Different DataSizes
@@ -76,33 +78,31 @@ func TestClientDisperseBlockAndGetBlobConfirmation(t *testing.T) {
 	fmt.Println("id: ", id)
 
 	// Monitor blob status
+	var status disperser_rpc.BlobStatus
+	timer := time.Now()
 	for {
-		time.Sleep(10 * time.Second)
-		fmt.Println("trying to get dispersed blob status...")
-
 		blobStatusReply, err := client.GetBlobStatus(ctx, idBytes)
 		assert.NoError(t, err)
 		assert.NotNil(t, blobStatusReply)
-		message := blobStatusReply.String()
-		fmt.Println(message)
 
-		switch status := blobStatusReply.GetStatus(); status {
-		case 0:
-			fmt.Println("Blob status: UNKNOWN")
-		case 1:
-			fmt.Println("Blob status: PROCESSING")
-		case 2:
-			fmt.Println("Blob status: CONFIRMED")
-		case 3:
-			fmt.Println("Blob status: FAILED")
-		case 4:
-			fmt.Println("Blob status: FINALIZED")
-		case 5:
-			fmt.Println("Blob status: INSUFFICIENT SIGNATURES")
-		case 6:
-			fmt.Println("Blobk status: DISPERSING")
-		default:
-			t.Fail()
+		// Log blob status
+		currStatus := blobStatusReply.GetStatus()
+		if currStatus != status {
+			prevStatusStr := disperser_rpc.BlobStatus_name[int32(status)]
+			currStatusStr := disperser_rpc.BlobStatus_name[int32(currStatus)]
+			elapsed := time.Since(timer)
+			fmt.Println("---- Blob state ----")
+			fmt.Printf("Change of state from current blob status %v to new blob status %v took: %s\n", prevStatusStr, currStatusStr, elapsed)
+
+			// Log blob information
+			message := blobStatusReply.String()
+			fmt.Println("---- Blob information ----")
+			fmt.Print(message + "\n\n")
+
+			// Reset timer and status
+			timer = time.Now()
+			status = currStatus
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
