@@ -21,7 +21,7 @@ const (
 
 const (
 	// NODE_CONFIGFILE name to identify the node config-file
-	NODE_CONFIGFILE = "node"
+	NODE_CONFIGFILE = "zkevm-node"
 )
 
 var configFileFlag = cli.StringFlag{
