@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/sieniven/polygoncdk-eigenda/config"
+	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/urfave/cli/v2"
 )
 

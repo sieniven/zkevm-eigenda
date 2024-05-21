@@ -7,7 +7,7 @@ require (
 	github.com/Layr-Labs/eigenda/api v0.6.2
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/sieniven/polygoncdk-eigenda v0.0.0-00010101000000-000000000000
+	github.com/sieniven/zkevm-eigenda v0.0.0-00010101000000-000000000000
 	github.com/spf13/viper v1.18.2
 	github.com/urfave/cli/v2 v2.27.1
 	google.golang.org/grpc v1.64.0
@@ -92,4 +92,4 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/sieniven/polygoncdk-eigenda => ./
+replace github.com/sieniven/zkevm-eigenda => ./

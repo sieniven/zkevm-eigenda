@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sieniven/polygoncdk-eigenda/etherman"
-	"github.com/sieniven/polygoncdk-eigenda/etherman/types"
-	"github.com/sieniven/polygoncdk-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/etherman"
+	"github.com/sieniven/zkevm-eigenda/etherman/types"
+	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
 )
 
 const (

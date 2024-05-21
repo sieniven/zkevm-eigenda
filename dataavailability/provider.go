@@ -3,7 +3,7 @@ package dataavailability
 import (
 	"context"
 
-	"github.com/sieniven/polygoncdk-eigenda/etherman/types"
+	"github.com/sieniven/zkevm-eigenda/etherman/types"
 )
 
 type DataAvailabilityProvider struct {

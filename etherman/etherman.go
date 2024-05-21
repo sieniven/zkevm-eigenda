@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonrollupmanager"
-	polygonzkevm "github.com/sieniven/polygoncdk-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
-	ethmanTypes "github.com/sieniven/polygoncdk-eigenda/etherman/types"
+	"github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonrollupmanager"
+	polygonzkevm "github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
+	ethmanTypes "github.com/sieniven/zkevm-eigenda/etherman/types"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"

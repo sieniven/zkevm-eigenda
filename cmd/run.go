@@ -6,11 +6,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/sieniven/polygoncdk-eigenda/config"
-	"github.com/sieniven/polygoncdk-eigenda/dataavailability"
-	"github.com/sieniven/polygoncdk-eigenda/etherman"
-	"github.com/sieniven/polygoncdk-eigenda/ethtxmanager"
-	"github.com/sieniven/polygoncdk-eigenda/sequencesender"
+	"github.com/sieniven/zkevm-eigenda/config"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/etherman"
+	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/sequencesender"
 	"github.com/urfave/cli/v2"
 )
 

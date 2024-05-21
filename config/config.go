@@ -8,9 +8,9 @@ import (
 	"xlayerda/config"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/sieniven/polygoncdk-eigenda/etherman"
-	"github.com/sieniven/polygoncdk-eigenda/ethtxmanager"
-	"github.com/sieniven/polygoncdk-eigenda/sequencesender"
+	"github.com/sieniven/zkevm-eigenda/etherman"
+	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/sequencesender"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )

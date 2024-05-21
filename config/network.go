@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sieniven/polygoncdk-eigenda/etherman"
+	"github.com/sieniven/zkevm-eigenda/etherman"
 )
 
 func (cfg *Config) loadNetworkConfig() {
