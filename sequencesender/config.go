@@ -1,15 +1,14 @@
 package sequencesender
 
 import (
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sieniven/zkevm-eigenda/config/types"
 )
 
 type Config struct {
 	// WaitPeriodSendSequence is the time the sequencer waits until
 	// trying to send a sequence to L1
-	WaitPeriodSendSequence time.Duration `mapstructure:"WaitPeriodSendSequence"`
+	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 
 	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
 	// non-trivial consequences: larger transactions than 128KB are significantly harder and

@@ -1,12 +1,14 @@
 package ethtxmanager
 
-import "time"
+import (
+	"github.com/sieniven/zkevm-eigenda/config/types"
+)
 
 type Config struct {
 	// FrequencyToMonitorTxs frequency of the resending failed txs
-	FrequenceToMonitorTxs time.Duration `mapstructure:"FrequencyToMonitorTxs"`
+	FrequenceToMonitorTxs types.Duration `mapstructure:"FrequencyToMonitorTxs"`
 	// WaitTxToBeMined time to wait after transaction was sent to the ethereum
-	WaitTxToBeMined time.Duration `mapstructure:"WaitTxToBeMined"`
+	WaitTxToBeMined types.Duration `mapstructure:"WaitTxToBeMined"`
 
 	// ForcedGas is the amount of gas to be forced in case of gas estimation error
 	ForcedGas uint64 `mapstructure:"ForcedGas"`

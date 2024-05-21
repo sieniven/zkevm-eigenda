@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -35,9 +37,9 @@ func start(cliCtx *cli.Context) error {
 	// Start mock sequence sender
 	go seqSender.Start(cliCtx.Context)
 
-	// Start send sequence switch goroute
-	seqSender.SendSequenceHandle(cliCtx.Context)
-
+	// Start send sequence flag handler
+	reader := bufio.NewReader(os.Stdin)
+	seqSender.SendSequenceHandle(cliCtx.Context, reader)
 	return nil
 }
 
@@ -54,7 +56,7 @@ func createMockSequenceSender(cfg config.Config, etm *ethtxmanager.Client, ether
 		panic(err)
 	}
 	if cfg.SequenceSender.SenderAddress.Cmp(common.Address{}) == 0 {
-		panic(errors.New("Sequence sender address not found"))
+		panic(errors.New("sequence sender address not found"))
 	}
 	if privKey == nil { //nolint:staticcheck
 		panic(errors.New("private key not found"))

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/urfave/cli/v2"
 )
 
-const appNmae = "mock-zkevm-node"
+const appName = "node"
 
 const (
 	// SEQUENCER is the sequencer component identifier
@@ -30,7 +33,7 @@ var configFileFlag = cli.StringFlag{
 
 func main() {
 	app := cli.NewApp()
-	app.Name = appNmae
+	app.Name = appName
 	flags := []cli.Flag{&configFileFlag}
 	app.Commands = []*cli.Command{
 		{
@@ -47,5 +50,11 @@ func main() {
 			Action:  testEigenDA,
 			Flags:   flags,
 		},
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

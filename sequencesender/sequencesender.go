@@ -1,6 +1,7 @@
 package sequencesender
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"math/rand"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	ethTxManagerOwner = "sequencer"
-	monitoredIDFormat = "sequence-from-%v-to-%v"
+	ethTxManagerOwner                = "sequencer"
+	monitoredIDFormat                = "sequence-from-%v-to-%v"
+	sendSequnceFlagTriggerBufferSize = 5
 )
 
 type SequenceSender struct {
@@ -41,9 +43,22 @@ func New(cfg Config, etherman *etherman.Client, manager *ethtxmanager.Client) (*
 	return &s, nil
 }
 
-func (s *SequenceSender) SendSequenceHandle(ctx context.Context) {
+// SetDataProvider sets the data provider
+func (s *SequenceSender) SetDataProvider(da DataAvaibilityProvider) {
+	s.da = da
+}
+
+func (s *SequenceSender) SendSequenceHandle(ctx context.Context, reader *bufio.Reader) {
 	for {
-		// TODO: run a client directly that listens for flag switches
+		char, _, err := reader.ReadRune()
+		if err != nil {
+			fmt.Println(err)
+		} else if char == 's' {
+			s.sendSequenceFlag.Store(true)
+		} else {
+			fmt.Println("unknown command received, skippping")
+		}
+		time.Sleep(time.Second)
 	}
 }
 
@@ -80,7 +95,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 			} else {
 				fmt.Println("waiting for sequences to be worth sending to L1")
 			}
-			time.Sleep(s.cfg.WaitPeriodSendSequence)
+			time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 			return
 		}
 
@@ -147,9 +162,4 @@ func (s *SequenceSender) getMockSequencesToSend(numSequences int) ([]types.Seque
 
 	fmt.Println("sequences should be sent to L1, too long since didnt send anything to L1")
 	return sequences, nil
-}
-
-// SetDataProvider sets the data provider
-func (s *SequenceSender) SetDataProvider(da DataAvaibilityProvider) {
-	s.da = da
 }

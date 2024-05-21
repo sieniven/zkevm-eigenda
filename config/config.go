@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"xlayerda/config"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/sieniven/zkevm-eigenda/config/types"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
 	"github.com/sieniven/zkevm-eigenda/sequencesender"
@@ -27,8 +27,8 @@ type Config struct {
 	Etherman       etherman.Config
 	EthTxManager   ethtxmanager.Config
 	SequenceSender sequencesender.Config
-	L1Config       etherman.L1Config         `mapstructure:"L1Config"`
-	Key            config.KeystoreFileConfig `mapstructure:"Key"`
+	L1Config       etherman.L1Config        `mapstructure:"L1Config"`
+	Key            types.KeystoreFileConfig `mapstructure:"Key"`
 }
 
 // Default parses the default configuration values

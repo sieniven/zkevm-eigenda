@@ -251,7 +251,7 @@ func (c *Client) Start() {
 		select {
 		case <-c.ctx.Done():
 			return
-		case <-time.After(c.cfg.FrequenceToMonitorTxs):
+		case <-time.After(c.cfg.FrequenceToMonitorTxs.Duration):
 			err := c.monitorTxs(context.Background())
 			if err != nil {
 				c.logErrorAndWait("failed to monitor txs: %v", err)
@@ -449,7 +449,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		fmt.Println("waiting signedTx to be mined...")
 
 		// wait tx to get mined
-		confirmed, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined)
+		confirmed, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			fmt.Printf("failed to wait tx to be mined: %v\n", err)
 			return
