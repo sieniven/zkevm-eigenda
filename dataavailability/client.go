@@ -17,38 +17,36 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type DisperserClient interface {
-	DisperseBlob(ctx context.Context, data []byte, customQuorums []uint8) (*disperser.BlobStatus, []byte, error)
-	DisperseBlobAuthenticated(ctx context.Context, data []byte, customQuorums []uint8) (*disperser.BlobStatus, []byte, error)
-	GetBlobStatus(ctx context.Context, key []byte) (*disperser_rpc.BlobStatusReply, error)
-}
+// type DisperserClient interface {
+// 	DisperseBlob(ctx context.Context, data []byte, customQuorums []uint8) (*disperser.BlobStatus, []byte, error)
+// 	DisperseBlobAuthenticated(ctx context.Context, data []byte, customQuorums []uint8) (*disperser.BlobStatus, []byte, error)
+// 	GetBlobStatus(ctx context.Context, key []byte) (*disperser_rpc.BlobStatusReply, error)
+// }
 
-type disperserClient struct {
-	config *Config
+type DisperserClient struct {
+	cfg    *Config
 	signer core.BlobRequestSigner
 }
 
-var _ DisperserClient = &disperserClient{}
-
-func NewDisperserClient(config *Config, signer core.BlobRequestSigner) DisperserClient {
-	return &disperserClient{
-		config: config,
+func NewDisperserClient(cfg *Config, signer core.BlobRequestSigner) *DisperserClient {
+	return &DisperserClient{
+		cfg:    cfg,
 		signer: signer,
 	}
 }
 
-func (c *disperserClient) getDialOptions() []grpc.DialOption {
-	if c.config.UseSecureGrpcFlag {
-		config := &tls.Config{}
-		credential := credentials.NewTLS(config)
+func (c *DisperserClient) getDialOptions() []grpc.DialOption {
+	if c.cfg.UseSecureGrpcFlag {
+		cfg := &tls.Config{}
+		credential := credentials.NewTLS(cfg)
 		return []grpc.DialOption{grpc.WithTransportCredentials(credential)}
 	} else {
 		return []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	}
 }
 
-func (c *disperserClient) DisperseBlob(ctx context.Context, data []byte, quorums []uint8) (*disperser.BlobStatus, []byte, error) {
-	addr := fmt.Sprintf("%v:%v", c.config.Hostname, c.config.Port)
+func (c *DisperserClient) DisperseBlob(ctx context.Context, data []byte, quorums []uint8) (*disperser.BlobStatus, []byte, error) {
+	addr := fmt.Sprintf("%v:%v", c.cfg.Hostname, c.cfg.Port)
 
 	dialOptions := c.getDialOptions()
 	conn, err := grpc.Dial(addr, dialOptions...)
@@ -57,8 +55,8 @@ func (c *disperserClient) DisperseBlob(ctx context.Context, data []byte, quorums
 	}
 	defer func() { _ = conn.Close() }()
 
-	disperserClient := disperser_rpc.NewDisperserClient(conn)
-	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout.Duration)
+	DisperserClient := disperser_rpc.NewDisperserClient(conn)
+	ctxTimeout, cancel := context.WithTimeout(ctx, c.cfg.Timeout.Duration)
 	defer cancel()
 
 	quorumNumbers := make([]uint32, len(quorums))
@@ -76,7 +74,7 @@ func (c *disperserClient) DisperseBlob(ctx context.Context, data []byte, quorums
 		CustomQuorumNumbers: quorumNumbers,
 	}
 
-	reply, err := disperserClient.DisperseBlob(ctxTimeout, request)
+	reply, err := DisperserClient.DisperseBlob(ctxTimeout, request)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -89,9 +87,9 @@ func (c *disperserClient) DisperseBlob(ctx context.Context, data []byte, quorums
 	return blobStatus, reply.GetRequestId(), nil
 }
 
-func (c *disperserClient) DisperseBlobAuthenticated(ctx context.Context, data []byte, quorums []uint8) (*disperser.BlobStatus, []byte, error) {
+func (c *DisperserClient) DisperseBlobAuthenticated(ctx context.Context, data []byte, quorums []uint8) (*disperser.BlobStatus, []byte, error) {
 
-	addr := fmt.Sprintf("%v:%v", c.config.Hostname, c.config.Port)
+	addr := fmt.Sprintf("%v:%v", c.cfg.Hostname, c.cfg.Port)
 
 	dialOptions := c.getDialOptions()
 	conn, err := grpc.Dial(addr, dialOptions...)
@@ -100,12 +98,12 @@ func (c *disperserClient) DisperseBlobAuthenticated(ctx context.Context, data []
 	}
 	defer func() { _ = conn.Close() }()
 
-	disperserClient := disperser_rpc.NewDisperserClient(conn)
-	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout.Duration)
+	DisperserClient := disperser_rpc.NewDisperserClient(conn)
+	ctxTimeout, cancel := context.WithTimeout(ctx, c.cfg.Timeout.Duration)
 
 	defer cancel()
 
-	stream, err := disperserClient.DisperseBlobAuthenticated(ctxTimeout)
+	stream, err := DisperserClient.DisperseBlobAuthenticated(ctxTimeout)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error while calling DisperseBlobAuthenticated: %w", err)
 	}
@@ -183,15 +181,15 @@ func (c *disperserClient) DisperseBlobAuthenticated(ctx context.Context, data []
 	return blobStatus, disperseReply.DisperseReply.GetRequestId(), nil
 }
 
-func (c *disperserClient) GetBlobStatus(ctx context.Context, requestID []byte) (*disperser_rpc.BlobStatusReply, error) {
-	addr := fmt.Sprintf("%v:%v", c.config.Hostname, c.config.Port)
+func (c *DisperserClient) GetBlobStatus(ctx context.Context, requestID []byte) (*disperser_rpc.BlobStatusReply, error) {
+	addr := fmt.Sprintf("%v:%v", c.cfg.Hostname, c.cfg.Port)
 	dialOptions := c.getDialOptions()
 	conn, err := grpc.Dial(addr, dialOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	disperserClient := disperser_rpc.NewDisperserClient(conn)
+	DisperserClient := disperser_rpc.NewDisperserClient(conn)
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
@@ -199,7 +197,7 @@ func (c *disperserClient) GetBlobStatus(ctx context.Context, requestID []byte) (
 		RequestId: requestID,
 	}
 
-	reply, err := disperserClient.GetBlobStatus(ctxTimeout, request)
+	reply, err := DisperserClient.GetBlobStatus(ctxTimeout, request)
 	if err != nil {
 		return nil, err
 	}
