@@ -34,4 +34,4 @@ lint: ## Runs the linter
 # Create config file
 .PHONY: config
 config:
-	cp ./config/environments/mock/node.config.toml .node.config.toml
+	cp ./config/environments/mock/node.config.toml .config.toml

@@ -60,13 +60,13 @@ var ErrNotFound = errors.New("not found")
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
 	// Chain ID of the L1 network
-	L1ChainID uint64 `json:"chainId"`
+	L1ChainID uint64 `mapstructure:"chainId"`
 	// ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
-	ZkEVMAddr common.Address `json:"polygonZkEVMAddress"`
+	ZkEVMAddr common.Address `mapstructure:"polygonZkEVMAddress"`
 	// RollupManagerAddr Address of the L1 contract
-	RollupManagerAddr common.Address `json:"polygonRollupManagerAddress"`
+	RollupManagerAddr common.Address `mapstructure:"polygonRollupManagerAddress"`
 	// EigenDAVerifierManagerAddr Address of the L1 contract
-	EigenDAVerifierManagerAddr common.Address `json:"eigenDAVerifierManagerAddress"`
+	EigenDAVerifierManagerAddr common.Address `mapstructure:"eigenDAVerifierManagerAddress"`
 }
 
 func NewClient(cfg Config, l1Config L1Config) (*Client, error) {

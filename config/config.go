@@ -15,7 +15,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const FlagCfg = "cfg"
+const (
+	FlagCfg     = "cfg"
+	FlagNetwork = "network"
+)
 
 // Represents the configuration of the entire mock Polygon CDK Node
 // The file is [TOML format]
@@ -27,8 +30,8 @@ type Config struct {
 	Etherman       etherman.Config
 	EthTxManager   ethtxmanager.Config
 	SequenceSender sequencesender.Config
-	L1Config       etherman.L1Config        `mapstructure:"L1Config"`
-	Key            types.KeystoreFileConfig `mapstructure:"Key"`
+	L1Config       etherman.L1Config
+	Key            types.KeystoreFileConfig
 }
 
 // Default parses the default configuration values
@@ -90,7 +93,9 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 
 	// Get L1Config parameters
-	cfg.loadNetworkConfig()
-
+	networkJsonFlag := ctx.Bool(FlagNetwork)
+	if networkJsonFlag {
+		cfg.loadNetworkConfig()
+	}
 	return cfg, nil
 }

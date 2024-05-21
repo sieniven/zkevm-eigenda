@@ -3,4 +3,4 @@ build/
 **/.DS_Store
 .vscode
 .env
-.node.config.toml
+.config.toml

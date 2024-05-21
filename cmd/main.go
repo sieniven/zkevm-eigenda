@@ -31,6 +31,14 @@ var configFileFlag = cli.StringFlag{
 	Required: true,
 }
 
+var networkJsonFlag = cli.BoolFlag{
+	Name:     config.FlagNetwork,
+	Aliases:  []string{"net"},
+	Usage:    "Use JSON network configuration",
+	Required: false,
+	Value:    false,
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName

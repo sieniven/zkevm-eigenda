@@ -1,4 +1,4 @@
-package eigendaclient
+package dataavailability
 
 import (
 	"context"
@@ -16,22 +16,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-type Config struct {
-	Hostname          string
-	Port              string
-	Timeout           time.Duration
-	UseSecureGrpcFlag bool
-}
-
-func NewConfig(hostname string, port string, timeout time.Duration, useSecureGrpcFlag bool) *Config {
-	return &Config{
-		Hostname:          hostname,
-		Port:              port,
-		Timeout:           timeout,
-		UseSecureGrpcFlag: useSecureGrpcFlag,
-	}
-}
 
 type DisperserClient interface {
 	DisperseBlob(ctx context.Context, data []byte, customQuorums []uint8) (*disperser.BlobStatus, []byte, error)
@@ -74,7 +58,7 @@ func (c *disperserClient) DisperseBlob(ctx context.Context, data []byte, quorums
 	defer func() { _ = conn.Close() }()
 
 	disperserClient := disperser_rpc.NewDisperserClient(conn)
-	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout.Duration)
 	defer cancel()
 
 	quorumNumbers := make([]uint32, len(quorums))
@@ -117,7 +101,7 @@ func (c *disperserClient) DisperseBlobAuthenticated(ctx context.Context, data []
 	defer func() { _ = conn.Close() }()
 
 	disperserClient := disperser_rpc.NewDisperserClient(conn)
-	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout)
+	ctxTimeout, cancel := context.WithTimeout(ctx, c.config.Timeout.Duration)
 
 	defer cancel()
 

@@ -18,7 +18,7 @@ type Config struct {
 
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
-	SenderAddress common.Address
+	SenderAddress common.Address `mapstructure:"SenderAddress"`
 
 	// L2Coinbase defines which address is going to receive the fees
 	L2Coinbase common.Address `mapstructure:"L2Coinbase"`
