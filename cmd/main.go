@@ -52,10 +52,10 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "test-da",
+			Name:    "da-metrics",
 			Aliases: []string{},
 			Usage:   "Test the EigenDA client functionality",
-			Action:  testEigenDA,
+			Action:  getEigenDAMetrics,
 			Flags:   flags,
 		},
 	}
