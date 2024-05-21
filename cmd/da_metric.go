@@ -55,8 +55,16 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 		// Log blob status
 		currStatus := blobStatusReply.GetStatus()
 		if currStatus != status {
-			prevStatusStr := disperser_rpc.BlobStatus_name[int32(status)]
-			currStatusStr := disperser_rpc.BlobStatus_name[int32(currStatus)]
+			prevStatusStr, ok := disperser_rpc.BlobStatus_name[int32(status)]
+			if !ok {
+				fmt.Println("Caught an unexpected status, prev status: ", status)
+				prevStatusStr = string(int32(status))
+			}
+			currStatusStr, ok := disperser_rpc.BlobStatus_name[int32(currStatus)]
+			if !ok {
+				fmt.Println("Caught an unexpected status, curr status: ", currStatus)
+				currStatusStr = string(int32(currStatus))
+			}
 			elapsed := time.Since(timer)
 			fmt.Println("---- Blob state ----")
 			fmt.Printf("Change of state from current blob status %v to new blob status %v took: %s\n", prevStatusStr, currStatusStr, elapsed)
@@ -72,6 +80,5 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			time.Sleep(10 * time.Second)
 		}
 	}
-
 	return nil
 }
