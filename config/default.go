@@ -2,6 +2,11 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+[Log]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
+
 [Etherman]
 URL = "http://localhost:8545"
 

@@ -7,21 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/eigenda/clients"
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
+	"github.com/sieniven/zkevm-eigenda/config/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
-	cfg := clients.Config{
+	cfg := Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
-		Timeout:           time.Duration(30 * time.Second),
+		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
 	signer := MockBlobRequestSigner{}
-	client := clients.NewDisperserClient(&cfg, signer)
+	client := NewDisperserClient(&cfg, signer)
 
 	data := []byte("hihihihihihihihihihihihihihihihihihi")
 	data = codec.ConvertByPaddingEmptyByte(data)
@@ -37,14 +37,14 @@ func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
 }
 
 func TestDisperserClientDisperseBlobWithRandomData(t *testing.T) {
-	cfg := clients.Config{
+	cfg := Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
-		Timeout:           time.Duration(30 * time.Second),
+		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
 	signer := MockBlobRequestSigner{}
-	client := clients.NewDisperserClient(&cfg, signer)
+	client := NewDisperserClient(&cfg, signer)
 
 	// Define Different DataSizes
 	dataSize := []int{100000, 200000, 1000, 80, 30000}

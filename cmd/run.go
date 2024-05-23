@@ -12,6 +12,7 @@ import (
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/log"
 	"github.com/sieniven/zkevm-eigenda/sequencesender"
 	"github.com/urfave/cli/v2"
 )
@@ -21,6 +22,7 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	setupLog(c.Log)
 
 	// Initialize eth manager instance
 	etherMan, err := newEtherman(*c)
@@ -81,4 +83,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 func newDataAvailability(c config.Config) (*dataavailability.DataAvailability, error) {
 	da := dataavailability.New(c.EigenDAClient)
 	return da, nil
+}
+
+func setupLog(c log.Config) {
+	log.Init(c)
 }

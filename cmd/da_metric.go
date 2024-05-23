@@ -19,6 +19,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	setupLog(c.Log)
 
 	cfg := clients.Config{
 		Hostname:          c.EigenDAClient.Hostname,

@@ -1,3 +1,8 @@
+[Log]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
+
 [Etherman]
 URL = "http://your.L1node.url"
 

@@ -11,6 +11,7 @@ import (
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/log"
 	"github.com/sieniven/zkevm-eigenda/sequencesender"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -34,6 +35,7 @@ type Config struct {
 	L1Config       etherman.L1Config
 	Key            types.KeystoreFileConfig
 	EigenDAClient  dataavailability.Config
+	Log            log.Config
 }
 
 // Default parses the default configuration values

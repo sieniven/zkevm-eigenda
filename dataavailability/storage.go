@@ -4,39 +4,59 @@ import (
 	"errors"
 	"sync"
 
+	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 var ErrNotFound = errors.New("not found")
 
+type BlobInfo struct {
+	BlobIndex            uint32
+	BatchHeaderHash      []byte
+	BatchRoot            []byte
+	ReferenceBlockNumber uint
+}
+
 // In-memory data availability storage for the mock implementation.
 type DAStorage struct {
-	inner map[common.Hash][]byte
+	inner map[common.Hash]BlobInfo
 	mutex *sync.RWMutex
 }
 
-func (s *DAStorage) Get(hash common.Hash) ([]byte, error) {
+func (s *DAStorage) Get(hash common.Hash) (BlobInfo, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	id, ok := s.inner[hash]
+	info, ok := s.inner[hash]
 	if ok {
-		return id, nil
+		return info, nil
 	} else {
-		return nil, ErrNotFound
+		return BlobInfo{}, ErrNotFound
 	}
 }
 
-func (s *DAStorage) Add(hash common.Hash, requestId []byte) error {
+func (s *DAStorage) Add(hash common.Hash, blob *disperser_rpc.BlobVerificationProof) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.inner[hash] = requestId
+	info := BlobInfo{
+		BlobIndex:            blob.BlobIndex,
+		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+	}
+	s.inner[hash] = info
 	return nil
 }
 
-func (s *DAStorage) Update(hash common.Hash, requestId []byte) error {
+func (s *DAStorage) Update(hash common.Hash, blob *disperser_rpc.BlobVerificationProof) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.inner[hash] = requestId
+	info := BlobInfo{
+		BlobIndex:            blob.BlobIndex,
+		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+	}
+	s.inner[hash] = info
 	return nil
 }

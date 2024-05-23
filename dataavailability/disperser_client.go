@@ -1,6 +1,3 @@
-//go:build ignore
-// +build ignore
-
 package dataavailability
 
 import (
@@ -201,6 +198,30 @@ func (c *DisperserClient) GetBlobStatus(ctx context.Context, requestID []byte) (
 	}
 
 	reply, err := DisperserClient.GetBlobStatus(ctxTimeout, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply, nil
+}
+
+func (c *DisperserClient) RetrieveBlob(ctx context.Context, batchHeaderHash []byte, blobIndex uint32) (*disperser_rpc.RetrieveBlobReply, error) {
+	addr := fmt.Sprintf("%v:%v", c.cfg.Hostname, c.cfg.Port)
+	dialOptions := c.getDialOptions()
+	conn, err := grpc.Dial(addr, dialOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	DisperserClient := disperser_rpc.NewDisperserClient(conn)
+	ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*60)
+	defer cancel()
+
+	request := &disperser_rpc.RetrieveBlobRequest{
+		BatchHeaderHash: batchHeaderHash,
+		BlobIndex:       blobIndex,
+	}
+	reply, err := DisperserClient.RetrieveBlob(ctxTimeout, request)
 	if err != nil {
 		return nil, err
 	}
