@@ -87,6 +87,12 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			status = currStatus
 			time.Sleep(10 * time.Second)
 		}
+
+		if status == disperser_rpc.BlobStatus_FINALIZED {
+			// Break once blob status is finalized
+			break
+		}
 	}
+
 	return nil
 }
