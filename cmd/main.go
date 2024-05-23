@@ -42,7 +42,10 @@ var networkJsonFlag = cli.BoolFlag{
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
-	flags := []cli.Flag{&configFileFlag}
+	flags := []cli.Flag{
+		&configFileFlag,
+		&networkJsonFlag,
+	}
 	app.Commands = []*cli.Command{
 		{
 			Name:    "run",
