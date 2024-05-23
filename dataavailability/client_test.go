@@ -7,22 +7,44 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Layr-Labs/eigenda/clients"
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
-	"github.com/sieniven/zkevm-eigenda/config/types"
-	daTypes "github.com/sieniven/zkevm-eigenda/dataavailability/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestClientDisperseBlob(t *testing.T) {
-	cfg := Config{
+func TestClientDisperseBlobWithStringData(t *testing.T) {
+	cfg := clients.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
-		Timeout:           types.NewDuration(30 * time.Second),
+		Timeout:           time.Duration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
-	signer := daTypes.MockBlobRequestSigner{}
-	client := NewDisperserClient(&cfg, signer)
+	signer := MockBlobRequestSigner{}
+	client := clients.NewDisperserClient(&cfg, signer)
+
+	data := []byte("hihihihihihihihihihihihihihihihihihi")
+	data = codec.ConvertByPaddingEmptyByte(data)
+
+	// Send blob
+	blobStatus, idBytes, err := client.DisperseBlob(context.Background(), data, []uint8{})
+	assert.NoError(t, err)
+	assert.NotNil(t, blobStatus)
+	assert.Equal(t, *blobStatus, disperser.Processing)
+	assert.True(t, len(idBytes) > 0)
+	id := string(idBytes)
+	fmt.Println("id: ", id)
+}
+
+func TestClientDisperseBlobWithRandomData(t *testing.T) {
+	cfg := clients.Config{
+		Hostname:          "disperser-holesky.eigenda.xyz",
+		Port:              "443",
+		Timeout:           time.Duration(30 * time.Second),
+		UseSecureGrpcFlag: true,
+	}
+	signer := MockBlobRequestSigner{}
+	client := clients.NewDisperserClient(&cfg, signer)
 
 	// Define Different DataSizes
 	dataSize := []int{100000, 200000, 1000, 80, 30000}

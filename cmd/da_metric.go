@@ -7,22 +7,27 @@ import (
 	"time"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
+	"github.com/Layr-Labs/eigenda/clients"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
-	"github.com/sieniven/zkevm-eigenda/config/types"
+	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
-	daTypes "github.com/sieniven/zkevm-eigenda/dataavailability/types"
 	"github.com/urfave/cli/v2"
 )
 
 func getEigenDAMetrics(cliCtx *cli.Context) error {
-	cfg := dataavailability.Config{
-		Hostname:          "disperser-holesky.eigenda.xyz",
-		Port:              "443",
-		Timeout:           types.NewDuration(30 * time.Second),
-		UseSecureGrpcFlag: true,
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		return err
 	}
-	signer := daTypes.MockBlobRequestSigner{}
-	client := dataavailability.NewDisperserClient(&cfg, signer)
+
+	cfg := clients.Config{
+		Hostname:          c.EigenDAClient.Hostname,
+		Port:              c.EigenDAClient.Port,
+		Timeout:           c.EigenDAClient.Timeout.Duration,
+		UseSecureGrpcFlag: c.EigenDAClient.UseSecureGrpcFlag,
+	}
+	signer := dataavailability.MockBlobRequestSigner{}
+	client := clients.NewDisperserClient(&cfg, signer)
 
 	// Define Different DataSizes
 	dataSize := []int{100000, 200000, 1000, 80, 30000}
@@ -30,7 +35,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	// Disperse Blob with different DataSizes
 	rand.Seed(time.Now().UnixNano())
 	data := make([]byte, dataSize[rand.Intn(len(dataSize))])
-	_, err := rand.Read(data)
+	_, err = rand.Read(data)
 	if err != nil {
 		panic(err)
 	}
@@ -40,6 +45,9 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 
 	// Send blob
 	_, idBytes, err := client.DisperseBlob(ctx, data, []uint8{})
+	if err != nil {
+		panic(err)
+	}
 	id := string(idBytes)
 	fmt.Println("id: ", id)
 

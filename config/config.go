@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/sieniven/zkevm-eigenda/config/types"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
 	"github.com/sieniven/zkevm-eigenda/sequencesender"
@@ -32,6 +33,7 @@ type Config struct {
 	SequenceSender sequencesender.Config
 	L1Config       etherman.L1Config
 	Key            types.KeystoreFileConfig
+	EigenDAClient  dataavailability.Config
 }
 
 // Default parses the default configuration values
