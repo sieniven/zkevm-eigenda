@@ -3,8 +3,10 @@ package dataavailability
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/Layr-Labs/eigenda/clients"
+	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 )
 
 type DataAvailabilityProvider struct {
@@ -30,13 +32,32 @@ func New(cfg Config) *DataAvailabilityProvider {
 }
 
 func (d DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
-	return []byte{}, nil
+	blobData := EncodeSequence(batchesData)
+
+	// Blob serialization
+	blobData = codec.ConvertByPaddingEmptyByte(blobData)
+
+	// Send blob to EigenDA disperser
+	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
+	if err != nil {
+		fmt.Println("failed to send blob to EigenDA disperser")
+		return []byte{}, nil
+	}
+
+	fmt.Println("sent blob to EigenDA disperser")
+	return idBytes, nil
 }
 
 func (d DataAvailabilityProvider) GetSequence(ctx context.Context, requestID []byte) ([][]byte, error) {
 	return [][]byte{}, nil
 }
 
+// EncodeSequence is the helper function to encode sequence data into 1D byte array. The
+// encoding scheme is ensured to be lossless.
+//
+// The first n+1 8-bytes of the blob contains the metadata of the batches data.
+// The first 8-bytes stores the size of the sequence, and the next 8-bytes will store the
+// byte array length of every batch data.
 func EncodeSequence(batchesData [][]byte) []byte {
 	sequence := []byte{}
 	metadata := []byte{}
@@ -59,6 +80,13 @@ func EncodeSequence(batchesData [][]byte) []byte {
 	return sequence
 }
 
+// DecodeSequence is the helper function to decode 1D byte array into sequence data. The
+// encoding scheme is ensured to be lossless.
+//
+// When decoding the blob data, the first n+1 8-bytes of the blob contains the metadata of
+// the batches data.
+// The first 8-bytes stores the size of the sequence, and the next 8-bytes will store the
+// byte array length of every batch data.
 func DecodeSequence(blobData []byte) [][]byte {
 	bn := blobData[:8]
 	n := binary.BigEndian.Uint64(bn)
