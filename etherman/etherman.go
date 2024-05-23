@@ -40,7 +40,7 @@ type Client struct {
 	l1Cfg         L1Config
 	cfg           Config
 	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
-	da            DataAvaibilityProvider
+	da            dataAbilitier
 }
 
 type ethereumClient interface {
@@ -387,7 +387,7 @@ func (etherMan *Client) WaitTxToBeMined(parentCtx context.Context, tx *types.Tra
 }
 
 // SetDataProvider sets the data provider
-func (etherMan *Client) SetDataProvider(da DataAvaibilityProvider) {
+func (etherMan *Client) SetDataProvider(da dataAbilitier) {
 	fmt.Println("setting data provider")
 	etherMan.da = da
 }

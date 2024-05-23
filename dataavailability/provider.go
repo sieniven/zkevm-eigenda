@@ -4,41 +4,59 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"sync"
 
 	"github.com/Layr-Labs/eigenda/clients"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
+	"github.com/ethereum/go-ethereum/common"
 )
 
+// DataAvailabilityProvider is the EigenDA backend manager that holds the DA implementation.
+// It contains the implementation of SequenceSender and SequenceRetriever of the zkevm's
+// dataavailability package.
 type DataAvailabilityProvider struct {
-	client clients.DisperserClient
-	cfg    clients.Config
+	cfg       clients.Config
+	state     DAStorage
+	disperser clients.DisperserClient
+	retriever clients.RetrievalClient
 }
 
 // Factory method for a new DataAvailibilityProvider instance
-func New(cfg Config) *DataAvailabilityProvider {
+func NewDataProvider(cfg Config) *DataAvailabilityProvider {
+	// Initialize in-memory DA storage
+	s := DAStorage{
+		inner: map[common.Hash][]byte{},
+		mutex: &sync.RWMutex{},
+	}
 	c := clients.Config{
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
 		Timeout:           cfg.Timeout.Duration,
 		UseSecureGrpcFlag: cfg.UseSecureGrpcFlag,
 	}
-	s := MockBlobRequestSigner{}
+	signer := MockBlobRequestSigner{}
 
 	p := &DataAvailabilityProvider{
-		client: clients.NewDisperserClient(&c, s),
-		cfg:    c,
+		cfg:       c,
+		state:     s,
+		disperser: clients.NewDisperserClient(&c, signer),
+		retriever: clients.NewRetrievalClient(),
 	}
 	return p
 }
 
-func (d DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+func (d *DataAvailabilityProvider) Init() error {
+	return nil
+}
+
+func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	blobData := EncodeSequence(batchesData)
 
 	// Blob serialization
 	blobData = codec.ConvertByPaddingEmptyByte(blobData)
 
 	// Send blob to EigenDA disperser
-	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
+	_, idBytes, err := d.disperser.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
 		fmt.Println("failed to send blob to EigenDA disperser")
 		return []byte{}, nil
@@ -48,8 +66,18 @@ func (d DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData 
 	return idBytes, nil
 }
 
-func (d DataAvailabilityProvider) GetSequence(ctx context.Context, requestID []byte) ([][]byte, error) {
-	return [][]byte{}, nil
+func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
+	// Get
+}
+
+// GetBatchL2Data returns the data from the EigenDA layer operators. It checks the DA storage to get the
+// requestID used when submitting the batch data to the DA.
+func (d *DataAvailabilityProvider) GetBatchL2Data(hash common.Hash) ([]byte, error) {
+	id, err := d.state.Get(hash)
+	if err != nil {
+		fmt.Println("failed to get blob requestID from DA storage")
+		return nil, err
+	}
 }
 
 // EncodeSequence is the helper function to encode sequence data into 1D byte array. The

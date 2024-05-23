@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestClientDisperseBlobWithStringData(t *testing.T) {
+func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
 	cfg := clients.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
@@ -36,7 +36,7 @@ func TestClientDisperseBlobWithStringData(t *testing.T) {
 	fmt.Println("id: ", id)
 }
 
-func TestClientDisperseBlobWithRandomData(t *testing.T) {
+func TestDisperserClientDisperseBlobWithRandomData(t *testing.T) {
 	cfg := clients.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",

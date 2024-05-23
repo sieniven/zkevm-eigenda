@@ -43,14 +43,16 @@ func start(cliCtx *cli.Context) error {
 	return nil
 }
 
-func newEtherman(c config.Config) (*etherman.Client, error) {
-	return etherman.NewClient(c.Etherman, c.L1Config)
-}
-
 // createMockSequenceSender is the mock function for PolygonCDK node that
 // creates a new instance of the mock sequence sender for the mock node.
 func createMockSequenceSender(cfg config.Config, etm *ethtxmanager.Client, etherMan *etherman.Client) *sequencesender.SequenceSender {
-	da := setEthermanDA(cfg, etherMan)
+	// Create new data avaiability manager
+	da, err := newDataAvailability(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	etherMan.SetDataProvider(da)
 	_, privKey, err := etherMan.LoadAuthFromKeyStore(cfg.Key.Path, cfg.Key.Password)
 	if err != nil {
 		panic(err)
@@ -72,16 +74,11 @@ func createMockSequenceSender(cfg config.Config, etm *ethtxmanager.Client, ether
 	return seqSender
 }
 
-func newDataAvailability(c config.Config) (*dataavailability.DataAvailabilityProvider, error) {
-	// TODO: add DA initialization pipline
-	return &dataavailability.DataAvailabilityProvider{}, nil
+func newEtherman(c config.Config) (*etherman.Client, error) {
+	return etherman.NewClient(c.Etherman, c.L1Config)
 }
 
-func setEthermanDA(c config.Config, etherMan *etherman.Client) *dataavailability.DataAvailabilityProvider {
-	da, err := newDataAvailability(c)
-	if err != nil {
-		panic(err)
-	}
-	etherMan.SetDataProvider(da)
-	return da
+func newDataAvailability(c config.Config) (*dataavailability.DataAvailability, error) {
+	da := dataavailability.New(c.EigenDAClient)
+	return da, nil
 }

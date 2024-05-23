@@ -27,7 +27,7 @@ type SequenceSender struct {
 	lastBatchNum     uint64
 
 	// data availability layer
-	da DataAvaibilityProvider
+	da dataAbilitier
 }
 
 // New inits sequence sender
@@ -44,7 +44,7 @@ func New(cfg Config, etherman *etherman.Client, manager *ethtxmanager.Client) (*
 }
 
 // SetDataProvider sets the data provider
-func (s *SequenceSender) SetDataProvider(da DataAvaibilityProvider) {
+func (s *SequenceSender) SetDataProvider(da dataAbilitier) {
 	s.da = da
 }
 
