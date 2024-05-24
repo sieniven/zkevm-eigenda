@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
-	"github.com/Layr-Labs/eigenda/clients"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
@@ -21,26 +19,11 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	cfg := clients.Config{
-		Hostname:          c.EigenDAClient.Hostname,
-		Port:              c.EigenDAClient.Port,
-		Timeout:           c.EigenDAClient.Timeout.Duration,
-		UseSecureGrpcFlag: c.EigenDAClient.UseSecureGrpcFlag,
-	}
 	signer := dataavailability.MockBlobRequestSigner{}
-	client := clients.NewDisperserClient(&cfg, signer)
+	client := dataavailability.NewDisperserClient(&c.EigenDAClient, signer)
 
-	// Define Different DataSizes
-	dataSize := []int{100000, 200000, 1000, 80, 30000}
-
-	// Disperse Blob with different DataSizes
-	rand.Seed(time.Now().UnixNano())
-	data := make([]byte, dataSize[rand.Intn(len(dataSize))])
-	_, err = rand.Read(data)
-	if err != nil {
-		panic(err)
-	}
-
+	// Generate mock string batch data
+	data := []byte("hihihihihihihihihihihihihihihihihihi")
 	data = codec.ConvertByPaddingEmptyByte(data)
 	ctx := context.Background()
 
@@ -95,5 +78,30 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 		}
 	}
 
+	// Test retrieve blob pipeline
+	blobStatusReply, err := client.GetBlobStatus(ctx, idBytes)
+	if blobStatusReply == nil {
+		panic(fmt.Errorf("empty blob status reply returned"))
+	}
+
+	info := blobStatusReply.GetInfo()
+	blob := info.GetBlobVerificationProof()
+	blobInfo := dataavailability.BlobInfo{
+		BlobIndex:            blob.BlobIndex,
+		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	reply, err := client.RetrieveBlob(ctx, blobInfo.BatchHeaderHash, blobInfo.BlobIndex)
+	if err != nil {
+		panic(err)
+	}
+
+	retrievedData := string(reply.GetData())
+	fmt.Println("decoded batch data: ", retrievedData)
 	return nil
 }

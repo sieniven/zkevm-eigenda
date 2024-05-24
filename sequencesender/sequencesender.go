@@ -105,13 +105,15 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		// Add sequence to be monitored
 		firstSequence := sequences[0]
 		lastSequence := sequences[sequenceCount-1]
-		dataAvailabilityMessage, err := s.da.PostSequence(ctx, sequences)
+		_, err = s.da.PostSequence(ctx, sequences)
 		if err != nil {
 			fmt.Printf("error posting sequences to the data availability protocol: %v\n", err)
 			return
 		}
+
+		mockDAMessage := []byte{}
 		to, data, err := s.etherman.BuildMockSequenceBatchesTxData(
-			s.cfg.SenderAddress, sequences, uint64(lastSequence.LastL2BLockTimestamp), firstSequence.BatchNumber-1, s.cfg.L2Coinbase, dataAvailabilityMessage)
+			s.cfg.SenderAddress, sequences, uint64(lastSequence.LastL2BLockTimestamp), firstSequence.BatchNumber-1, s.cfg.L2Coinbase, mockDAMessage)
 		if err != nil {
 			fmt.Printf("error estimating new sequenceBatches to add to eth tx manager: %v\n", err)
 			return

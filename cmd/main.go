@@ -61,6 +61,13 @@ func main() {
 			Action:  getEigenDAMetrics,
 			Flags:   flags,
 		},
+		{
+			Name:    "provider-test",
+			Aliases: []string{},
+			Usage:   "Test the EigenDA provider instance functionality",
+			Action:  testDAProvider,
+			Flags:   flags,
+		},
 	}
 
 	err := app.Run(os.Args)

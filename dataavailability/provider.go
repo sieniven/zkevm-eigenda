@@ -100,7 +100,8 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
 	}
-	batchesData = append(batchesData, reply.GetData())
+	batch := DecodeSequence(reply.GetData())
+	batchesData = append(batchesData, batch...)
 	return batchesData, nil
 }
 
