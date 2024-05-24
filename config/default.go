@@ -29,4 +29,5 @@ Hostname = "disperser-holesky.eigenda.xyz"
 Port = 443
 Timeout = "30s"
 UseSecureGrpcFlag = true
+RetrieveBlobStatusPeriod = "5s"
 `

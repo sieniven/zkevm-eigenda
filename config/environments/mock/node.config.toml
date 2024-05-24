@@ -20,6 +20,13 @@ SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 L2Coinbase = "0xD6DdA5AA7749142B7fDa3Fe4662C9f346101B8A6"
 MaxBatchesForL1 = 20
 
+[EigenDAClient]
+Hostname = "disperser-holesky.eigenda.xyz"
+Port = 443
+Timeout = "30s"
+UseSecureGrpcFlag = true
+RetrieveBlobStatusPeriod = "5s"
+
 [L1Config]
 chainId = 1
 polygonZkEVMAddress = "0x519E42c24163192Dca44CD3fBDCEBF6be9130987"

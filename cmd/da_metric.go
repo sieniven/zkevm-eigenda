@@ -70,7 +70,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			// Reset timer and status
 			timer = time.Now()
 			status = currStatus
-			time.Sleep(10 * time.Second)
+			time.Sleep(c.EigenDAClient.RetrieveBlobStatusPeriod.Duration)
 
 			if status == disperser_rpc.BlobStatus_CONFIRMED {
 				// Test retrieve blob pipeline

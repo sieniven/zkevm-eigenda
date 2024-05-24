@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
@@ -45,7 +46,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	blobData := EncodeSequence(batchesData)
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
-		fmt.Println("failed to send blob to EigenDA disperser")
+		fmt.Println("failed to send blob to EigenDA disperser: ", err)
 		return BlobInfo{}, nil
 	}
 	fmt.Println("sent blob to EigenDA disperser")
@@ -63,6 +64,9 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		if currStatus == disperser_rpc.BlobStatus_CONFIRMED || currStatus == disperser_rpc.BlobStatus_FINALIZED {
 			break
 		}
+
+		// Wait period before retrieving blob status
+		time.Sleep(d.cfg.RetrieveBlobStatusPeriod.Duration)
 	}
 
 	if blobStatusReply == nil {
