@@ -18,7 +18,7 @@ type DABackender interface {
 type SequenceSender interface {
 	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 	// as expected by the contract
-	PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error)
+	PostSequence(ctx context.Context, batchesData [][]byte) (BlobInfo, error)
 }
 
 // SequenceRetriever is used to retrieve batch data

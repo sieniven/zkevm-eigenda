@@ -23,6 +23,7 @@ func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
 	signer := MockBlobRequestSigner{}
 	client := NewDisperserClient(&cfg, signer)
 
+	// Generate mock string batch data
 	data := []byte("hihihihihihihihihihihihihihihihihihi")
 	data = codec.ConvertByPaddingEmptyByte(data)
 

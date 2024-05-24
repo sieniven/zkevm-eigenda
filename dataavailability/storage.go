@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 
-	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -39,28 +38,16 @@ func (s *DAStorage) Get(hash common.Hash) (BlobInfo, error) {
 	}
 }
 
-func (s *DAStorage) Add(hash common.Hash, blob *disperser_rpc.BlobVerificationProof) error {
+func (s *DAStorage) Add(hash common.Hash, info BlobInfo) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	info := BlobInfo{
-		BlobIndex:            blob.BlobIndex,
-		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
-	}
 	s.inner[hash] = info
 	return nil
 }
 
-func (s *DAStorage) Update(hash common.Hash, blob *disperser_rpc.BlobVerificationProof) error {
+func (s *DAStorage) Update(hash common.Hash, info BlobInfo) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	info := BlobInfo{
-		BlobIndex:            blob.BlobIndex,
-		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
-	}
 	s.inner[hash] = info
 	return nil
 }

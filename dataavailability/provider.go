@@ -41,7 +41,7 @@ func (d *DataAvailabilityProvider) Init() error {
 	return nil
 }
 
-func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) (BlobInfo, error) {
 	blobData := EncodeSequence(batchesData)
 
 	// Blob serialization
@@ -51,24 +51,39 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
 		fmt.Println("failed to send blob to EigenDA disperser")
-		return []byte{}, nil
+		return BlobInfo{}, nil
 	}
-
 	fmt.Println("sent blob to EigenDA disperser")
+
+	var blobStatusReply *disperser_rpc.BlobStatusReply
 	for {
-		blobStatusReply, err := d.client.GetBlobStatus(ctx, idBytes)
+		blobStatusReply, err = d.client.GetBlobStatus(ctx, idBytes)
 		if err != nil {
 			fmt.Printf("error getting blob status: %v\n", err)
-			return nil, err
+			return BlobInfo{}, err
 		}
 
 		// Get blob status
 		currStatus := blobStatusReply.GetStatus()
-		if currStatus == disperser_rpc.BlobStatus_CONFIRMED {
+		if currStatus == disperser_rpc.BlobStatus_CONFIRMED || currStatus == disperser_rpc.BlobStatus_FINALIZED {
 			break
 		}
 	}
-	return idBytes, nil
+
+	if blobStatusReply == nil {
+		err = fmt.Errorf("empty blob status reply returned")
+		return BlobInfo{}, err
+	}
+
+	info := blobStatusReply.GetInfo()
+	blob := info.GetBlobVerificationProof()
+	blobInfo := BlobInfo{
+		BlobIndex:            blob.BlobIndex,
+		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+	}
+	return blobInfo, nil
 }
 
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, blobInfo BlobInfo) ([][]byte, error) {
@@ -89,37 +104,23 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	return batchesData, nil
 }
 
-func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, requestId []byte, batches []common.Hash) error {
-	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
-	if err != nil {
-		fmt.Printf("error getting blob status: %v\n", err)
-		return err
-	}
-
-	// Process and store blob status in storage
-	currStatus := blobStatusReply.GetStatus()
-	if currStatus == disperser_rpc.BlobStatus_CONFIRMED || currStatus == disperser_rpc.BlobStatus_FINALIZED {
-		blobInfo := blobStatusReply.GetInfo()
-		blobVerificationProof := blobInfo.GetBlobVerificationProof()
-
-		// Store blob information inside in-memory DA storage
-		for idx, hash := range batches {
-			err := d.state.Add(hash, blobVerificationProof)
-			if err != nil {
-				fmt.Printf("error adding blob into storage: %v\n", err)
-				// Should not come here, but we will panic the mock node if indexing fails
-				panic(err)
-			}
-			err = d.state.AddIndex(hash, idx)
-			if err != nil {
-				fmt.Printf("error adding batch index into storage: %v\n", err)
-				// Should not come here, but we will panic the mock node if indexing fails
-				panic(err)
-			}
+func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, blobInfo BlobInfo, batches []common.Hash) error {
+	// Store blob information inside in-memory DA storage
+	for idx, hash := range batches {
+		err := d.state.Add(hash, blobInfo)
+		if err != nil {
+			fmt.Printf("error adding blob into storage: %v\n", err)
+			// Should not come here, but we will panic the mock node if indexing fails
+			panic(err)
 		}
-		return nil
+		err = d.state.AddIndex(hash, idx)
+		if err != nil {
+			fmt.Printf("error adding batch index into storage: %v\n", err)
+			// Should not come here, but we will panic the mock node if indexing fails
+			panic(err)
+		}
 	}
-	return fmt.Errorf("failed to store blob in DA storage, blob is not confirmed or finalized")
+	return nil
 }
 
 // GetBatchL2Data returns the data from the EigenDA layer operators. It checks the DA storage to get the

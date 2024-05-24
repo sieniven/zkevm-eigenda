@@ -25,7 +25,7 @@ func New(cfg Config) *DataAvailability {
 
 // PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 // as expected by the contract
-func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
+func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) (BlobInfo, error) {
 	batchesData := [][]byte{}
 	for _, batch := range sequences {
 		// Do not send to the DA backend data that will be stored to L1
