@@ -23,9 +23,8 @@ type DataAvailabilityProvider struct {
 func NewDataProvider(cfg Config) *DataAvailabilityProvider {
 	// Initialize in-memory DA storage
 	s := DAStorage{
-		inner:    map[common.Hash]BlobInfo{},
-		da_inner: map[common.Hash]int{},
-		mutex:    &sync.RWMutex{},
+		inner: map[common.Hash]BlobInfo{},
+		mutex: &sync.RWMutex{},
 	}
 	signer := MockBlobRequestSigner{}
 
@@ -34,6 +33,7 @@ func NewDataProvider(cfg Config) *DataAvailabilityProvider {
 		state:  s,
 		client: NewDisperserClient(&cfg, signer),
 	}
+
 	return p
 }
 
@@ -83,6 +83,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
 		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
 	}
+
 	return blobInfo, nil
 }
 
@@ -100,27 +101,21 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
 	}
-	batch := DecodeSequence(reply.GetData())
-	batchesData = append(batchesData, batch...)
+	data, _ := DecodeSequence(reply.GetData())
+	batchesData = append(batchesData, data...)
+
 	return batchesData, nil
 }
 
-func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, blobInfo BlobInfo, batches []common.Hash) error {
+func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, batchHash common.Hash, blobInfo BlobInfo) error {
 	// Store blob information inside in-memory DA storage
-	for idx, hash := range batches {
-		err := d.state.Add(hash, blobInfo)
-		if err != nil {
-			fmt.Printf("error adding blob into storage: %v\n", err)
-			// Should not come here, but we will panic the mock node if indexing fails
-			panic(err)
-		}
-		err = d.state.AddIndex(hash, idx)
-		if err != nil {
-			fmt.Printf("error adding batch index into storage: %v\n", err)
-			// Should not come here, but we will panic the mock node if indexing fails
-			panic(err)
-		}
+	err := d.state.Add(batchHash, blobInfo)
+	if err != nil {
+		fmt.Printf("error adding blob into storage: %v\n", err)
+		// Should not come here, but we will panic the mock node if indexing fails
+		panic(err)
 	}
+
 	return nil
 }
 
@@ -132,17 +127,20 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		fmt.Println("failed to get blob info from DA storage")
 		return nil, err
 	}
+
 	reply, err := d.client.RetrieveBlob(ctx, blobInfo.BatchHeaderHash, blobInfo.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
 	}
-	idx, err := d.state.GetIndex(hash)
-	if err != nil {
-		fmt.Println("failed to get blob index from DA storage")
-		return nil, err
-	}
 	data := reply.GetData()
-	batchesData := DecodeSequence(data)
-	return batchesData[idx], nil
+	batchesData, batchesHash := DecodeSequence(data)
+
+	// Get batch data from batch hash
+	for idx, h := range batchesHash {
+		if h == hash {
+			return batchesData[idx], nil
+		}
+	}
+	return nil, fmt.Errorf("failed to get batch data from hash, corrupted DA storage")
 }

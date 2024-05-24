@@ -2,7 +2,6 @@ package dataavailability
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -68,10 +67,12 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	}
 
 	// send mock sequence with provider
-	idBytes, err := provider.PostSequence(context.Background(), mockBatches)
+	blobInfo, err := provider.PostSequence(context.Background(), mockBatches)
 	assert.NoError(t, err)
-	assert.NotNil(t, idBytes)
-	assert.NotEmpty(t, idBytes)
-	id := string(idBytes)
-	fmt.Println("id: ", id)
+	assert.NotZero(t, blobInfo.BlobIndex)
+	assert.NotNil(t, blobInfo.BatchHeaderHash)
+	assert.NotEmpty(t, blobInfo.BatchHeaderHash)
+	assert.NotNil(t, blobInfo.BatchRoot)
+	assert.NotEmpty(t, blobInfo.BatchRoot)
+	assert.NotZero(t, blobInfo.ReferenceBlockNumber)
 }

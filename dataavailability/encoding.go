@@ -1,6 +1,11 @@
 package dataavailability
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+)
 
 // EncodeSequence is the helper function to encode sequence data into 1D byte array. The
 // encoding scheme is ensured to be lossless.
@@ -21,10 +26,14 @@ func EncodeSequence(batchesData [][]byte) []byte {
 		sequence = append(sequence, seq...)
 
 		// Add batch metadata to byte array
+		// Batch metadata contains the byte array length and the Keccak256 hash of the
+		// batch data
 		n := uint64(len(seq))
 		bn := make([]byte, 8)
 		binary.BigEndian.PutUint64(bn, n)
+		hash := crypto.Keccak256Hash(seq)
 		metadata = append(metadata, bn...)
+		metadata = append(metadata, hash.Bytes()...)
 	}
 	sequence = append(metadata, sequence...)
 	return sequence
@@ -37,20 +46,29 @@ func EncodeSequence(batchesData [][]byte) []byte {
 // the batches data.
 // The first 8-bytes stores the size of the sequence, and the next 8-bytes will store the
 // byte array length of every batch data.
-func DecodeSequence(blobData []byte) [][]byte {
+func DecodeSequence(blobData []byte) ([][]byte, []common.Hash) {
 	bn := blobData[:8]
 	n := binary.BigEndian.Uint64(bn)
-	metadata := blobData[8 : 8*(n+1)]
-	sequence := blobData[8*(n+1):]
+	// Each batch metadata contains the batch data byte array length (8 byte) and the
+	// batch data hash (32 byte)
+	metadata := blobData[8 : 40*n+8]
+	sequence := blobData[40*n+8:]
 
 	batchesData := [][]byte{}
+	batchesHash := []common.Hash{}
 	idx := uint64(0)
 	for i := uint64(0); i < n; i++ {
-		// Get batch data byte array length
-		bn := metadata[8*i : 8*i+8]
+		// Get batch metadata
+		bn := metadata[40*i : 40*i+8]
 		n := binary.BigEndian.Uint64(bn)
+
+		hash := common.BytesToHash(metadata[40*i+8 : 40*(i+1)])
+		batchesHash = append(batchesHash, hash)
+
+		// Get batch data
 		batchesData = append(batchesData, sequence[idx:idx+n])
 		idx += n
 	}
-	return batchesData
+
+	return batchesData, batchesHash
 }

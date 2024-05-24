@@ -6,12 +6,15 @@ import (
 	"time"
 
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodeSequenceToAndFromStringBlob(t *testing.T) {
 	mock_string_data := "hihihihihihihihihihihihihihihihihihi"
 	data := []byte(mock_string_data)
+	hash := crypto.Keccak256Hash(data)
 
 	// Generate mock sequence data
 	mockSeqData := [][]byte{}
@@ -21,16 +24,23 @@ func TestEncodeDecodeSequenceToAndFromStringBlob(t *testing.T) {
 	blob := EncodeSequence(mockSeqData)
 
 	// Decode blob
-	decodedBlob := DecodeSequence(blob)
+	decodedBatchesData, decodedBatchesHash := DecodeSequence(blob)
 
 	// Assert decoded sequence length is correct
-	n := len(decodedBlob)
-	assert.Equal(t, 10, n)
+	n_data := len(decodedBatchesData)
+	n_hash := len(decodedBatchesHash)
+	assert.Equal(t, 10, n_data)
+	assert.Equal(t, 10, n_hash)
 
 	// Assert decoded sequence data is correct
-	for i := 0; i < n; i++ {
-		data_decoded := string(decodedBlob[i])
-		assert.Equal(t, data_decoded, mock_string_data)
+	for _, batchData := range decodedBatchesData {
+		data_decoded := string(batchData)
+		assert.Equal(t, mock_string_data, data_decoded)
+	}
+
+	// Assert decoded batches' hash is correct
+	for _, batchHash := range decodedBatchesHash {
+		assert.Equal(t, hash, batchHash)
 	}
 }
 
@@ -40,6 +50,7 @@ func TestEncodeDecodeSequenceToAndFromRandomBlob(t *testing.T) {
 
 	// Generate mock sequence data
 	mockSeqData := [][]byte{}
+	mockSeqHash := []common.Hash{}
 	for i := 0; i < 10; i++ {
 		// Disperse Blob with different DataSizes
 		rand.Seed(time.Now().UnixNano())
@@ -48,20 +59,29 @@ func TestEncodeDecodeSequenceToAndFromRandomBlob(t *testing.T) {
 		assert.NoError(t, err)
 
 		data = codec.ConvertByPaddingEmptyByte(data)
+		hash := crypto.Keccak256Hash(data)
+
 		mockSeqData = append(mockSeqData, data)
+		mockSeqHash = append(mockSeqHash, hash)
 	}
 	blob := EncodeSequence(mockSeqData)
 
 	// Decode blob
-	decodedBlob := DecodeSequence(blob)
+	decodedBatchesData, decodedBatchesHash := DecodeSequence(blob)
 
 	// Assert decoded sequence length is correct
-	n := len(decodedBlob)
-	assert.Equal(t, 10, n)
+	n_data := len(decodedBatchesData)
+	n_hash := len(decodedBatchesHash)
+	assert.Equal(t, 10, n_data)
+	assert.Equal(t, 10, n_hash)
 
 	// Assert decoded sequence data is correct
-	for i := 0; i < n; i++ {
-		data_decoded := decodedBlob[i]
-		assert.Equal(t, data_decoded, mockSeqData[i])
+	for i := 0; i < n_data; i++ {
+		assert.Equal(t, mockSeqData[i], decodedBatchesData[i])
+	}
+
+	// Assert decoded batches' hash is correct
+	for i := 0; i < n_hash; i++ {
+		assert.Equal(t, mockSeqHash[i], decodedBatchesHash[i])
 	}
 }

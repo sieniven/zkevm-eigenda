@@ -23,7 +23,8 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	client := dataavailability.NewDisperserClient(&c.EigenDAClient, signer)
 
 	// Generate mock string batch data
-	data := []byte("hihihihihihihihihihihihihihihihihihi")
+	stringData := "hihihihihihihihihihihihihihihihihihi"
+	data := []byte(stringData)
 	data = codec.ConvertByPaddingEmptyByte(data)
 	ctx := context.Background()
 
@@ -70,6 +71,37 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			timer = time.Now()
 			status = currStatus
 			time.Sleep(10 * time.Second)
+
+			if status == disperser_rpc.BlobStatus_CONFIRMED {
+				// Test retrieve blob pipeline
+				blobStatusReply, err := client.GetBlobStatus(ctx, idBytes)
+				if blobStatusReply == nil {
+					panic(fmt.Errorf("empty blob status reply returned"))
+				}
+
+				info := blobStatusReply.GetInfo()
+				blob := info.GetBlobVerificationProof()
+				blobInfo := dataavailability.BlobInfo{
+					BlobIndex:            blob.BlobIndex,
+					BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+					BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+					ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+				}
+				if err != nil {
+					panic(err)
+				}
+
+				reply, err := client.RetrieveBlob(ctx, blobInfo.BatchHeaderHash, blobInfo.BlobIndex)
+				if err != nil {
+					panic(err)
+				}
+
+				retrievedData := string(reply.GetData())
+				if retrievedData != stringData {
+					panic(fmt.Errorf("retrieved data does not equal to initial data"))
+				}
+				fmt.Println("decoded batch data: ", retrievedData)
+			}
 		}
 
 		if status == disperser_rpc.BlobStatus_FINALIZED {
@@ -77,31 +109,5 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			break
 		}
 	}
-
-	// Test retrieve blob pipeline
-	blobStatusReply, err := client.GetBlobStatus(ctx, idBytes)
-	if blobStatusReply == nil {
-		panic(fmt.Errorf("empty blob status reply returned"))
-	}
-
-	info := blobStatusReply.GetInfo()
-	blob := info.GetBlobVerificationProof()
-	blobInfo := dataavailability.BlobInfo{
-		BlobIndex:            blob.BlobIndex,
-		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
-	}
-	if err != nil {
-		panic(err)
-	}
-
-	reply, err := client.RetrieveBlob(ctx, blobInfo.BatchHeaderHash, blobInfo.BlobIndex)
-	if err != nil {
-		panic(err)
-	}
-
-	retrievedData := string(reply.GetData())
-	fmt.Println("decoded batch data: ", retrievedData)
 	return nil
 }
