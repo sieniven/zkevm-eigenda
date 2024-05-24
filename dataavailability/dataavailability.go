@@ -43,6 +43,6 @@ func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.S
 // 3. From DA backend
 //
 // For this minimal mock implementation, we will test the lowest priority return method from the DA backend.
-func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
-	return d.backend.GetSequence(d.ctx, batchHashes, dataAvailabilityMessage)
+func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []common.Hash, blobInfo BlobInfo) ([][]byte, error) {
+	return d.backend.GetSequence(d.ctx, batchHashes, blobInfo)
 }

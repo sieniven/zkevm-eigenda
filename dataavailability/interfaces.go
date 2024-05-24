@@ -24,5 +24,5 @@ type SequenceSender interface {
 // SequenceRetriever is used to retrieve batch data
 type SequenceRetriever interface {
 	// GetSequence retrieves the sequence data from the data availability backend
-	GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error)
+	GetSequence(ctx context.Context, batchHashes []common.Hash, blobInfo BlobInfo) ([][]byte, error)
 }
