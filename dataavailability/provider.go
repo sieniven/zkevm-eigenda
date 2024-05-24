@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
-	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -42,12 +41,8 @@ func (d *DataAvailabilityProvider) Init() error {
 }
 
 func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) (BlobInfo, error) {
-	blobData := EncodeSequence(batchesData)
-
-	// Blob serialization
-	blobData = codec.ConvertByPaddingEmptyByte(blobData)
-
 	// Send blob to EigenDA disperser
+	blobData := EncodeSequence(batchesData)
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
 		fmt.Println("failed to send blob to EigenDA disperser")

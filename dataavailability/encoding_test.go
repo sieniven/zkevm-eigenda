@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -57,11 +56,10 @@ func TestEncodeDecodeSequenceToAndFromRandomBlob(t *testing.T) {
 		data := make([]byte, dataSize[rand.Intn(len(dataSize))])
 		_, err := rand.Read(data)
 		assert.NoError(t, err)
-
-		data = codec.ConvertByPaddingEmptyByte(data)
-		hash := crypto.Keccak256Hash(data)
-
 		mockSeqData = append(mockSeqData, data)
+
+		// Get batch hash
+		hash := crypto.Keccak256Hash(data)
 		mockSeqHash = append(mockSeqHash, hash)
 	}
 	blob := EncodeSequence(mockSeqData)

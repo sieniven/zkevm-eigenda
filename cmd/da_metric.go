@@ -96,8 +96,9 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 					panic(err)
 				}
 
-				retrievedData := string(reply.GetData())
-				if retrievedData != stringData {
+				retrievedData := reply.GetData()
+				retrievedData = codec.RemoveEmptyByteFromPaddedBytes(retrievedData)
+				if string(retrievedData) != stringData {
 					panic(fmt.Errorf("retrieved data does not equal to initial data"))
 				}
 				fmt.Println("decoded batch data: ", retrievedData)

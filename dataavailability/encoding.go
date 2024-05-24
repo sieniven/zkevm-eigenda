@@ -3,6 +3,7 @@ package dataavailability
 import (
 	"encoding/binary"
 
+	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -36,6 +37,10 @@ func EncodeSequence(batchesData [][]byte) []byte {
 		metadata = append(metadata, hash.Bytes()...)
 	}
 	sequence = append(metadata, sequence...)
+
+	// Blob serialization
+	sequence = codec.ConvertByPaddingEmptyByte(sequence)
+
 	return sequence
 }
 
@@ -47,6 +52,9 @@ func EncodeSequence(batchesData [][]byte) []byte {
 // The first 8-bytes stores the size of the sequence, and the next 8-bytes will store the
 // byte array length of every batch data.
 func DecodeSequence(blobData []byte) ([][]byte, []common.Hash) {
+	// Blob deserialization
+	blobData = codec.RemoveEmptyByteFromPaddedBytes(blobData)
+
 	bn := blobData[:8]
 	n := binary.BigEndian.Uint64(bn)
 	// Each batch metadata contains the batch data byte array length (8 byte) and the

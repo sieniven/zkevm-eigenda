@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sieniven/zkevm-eigenda/config/types"
 	"github.com/stretchr/testify/assert"
 )
 
+// Set longer timeout flag for test case
 func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 	cfg := Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
@@ -21,8 +22,8 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 	provider := NewDataProvider(cfg)
 
 	// Generate mock string batch data
-	data := []byte("hihihihihihihihihihihihihihihihihihi")
-	data = codec.ConvertByPaddingEmptyByte(data)
+	stringData := "hihihihihihihihihihihihihihihihihihi"
+	data := []byte(stringData)
 
 	// Generate mock string sequence
 	mockBatches := [][]byte{}
@@ -39,8 +40,19 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 	assert.NotNil(t, blobInfo.BatchRoot)
 	assert.NotEmpty(t, blobInfo.BatchRoot)
 	assert.NotZero(t, blobInfo.ReferenceBlockNumber)
+
+	// Retrieve sequence with provider
+	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, blobInfo)
+
+	// Validate retrieved data
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(batchesData))
+	for _, batchData := range batchesData {
+		assert.Equal(t, stringData, string(batchData))
+	}
 }
 
+// Set longer timeout flag for test case
 func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	cfg := Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
@@ -58,7 +70,6 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	data := make([]byte, dataSize[rand.Intn(len(dataSize))])
 	_, err := rand.Read(data)
 	assert.NoError(t, err)
-	data = codec.ConvertByPaddingEmptyByte(data)
 
 	// Generate mock string sequence
 	mockBatches := [][]byte{}
@@ -75,4 +86,14 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	assert.NotNil(t, blobInfo.BatchRoot)
 	assert.NotEmpty(t, blobInfo.BatchRoot)
 	assert.NotZero(t, blobInfo.ReferenceBlockNumber)
+
+	// Retrieve sequence with provider
+	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, blobInfo)
+
+	// Validate retrieved data
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(batchesData))
+	for idx, batchData := range batchesData {
+		assert.Equal(t, mockBatches[idx], batchData)
+	}
 }
