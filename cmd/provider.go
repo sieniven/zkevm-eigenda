@@ -60,12 +60,12 @@ func testDAProvider(cliCtx *cli.Context) error {
 
 	for _, batch := range batchesData {
 		if stringData == string(batch) {
-			fmt.Println("valid batch data :)")
+			fmt.Println("Valid batch data :)")
 		} else {
 			panic(fmt.Errorf("invalid batch data"))
 		}
 	}
 
-	// Generate mock string sequence
+	fmt.Println("Provider posted and retrieved valid batches data from EigenDA layer")
 	return nil
 }
