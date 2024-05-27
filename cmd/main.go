@@ -40,9 +40,17 @@ var networkJsonFlag = cli.BoolFlag{
 }
 
 var blobIdFlag = cli.StringFlag{
-	Name:     config.RequestID,
+	Name:     config.FlagRequestID,
 	Aliases:  []string{"id"},
 	Usage:    "EigenDA blob Request ID",
+	Required: false,
+	Value:    "",
+}
+
+var toFlag = cli.StringFlag{
+	Name:     config.FlagTo,
+	Aliases:  []string{"toaddress"},
+	Usage:    "receiving address to send test eth",
 	Required: false,
 	Value:    "",
 }
@@ -54,6 +62,7 @@ func main() {
 		&configFileFlag,
 		&networkJsonFlag,
 		&blobIdFlag,
+		&toFlag,
 	}
 	app.Commands = []*cli.Command{
 		{
@@ -82,6 +91,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Retrieve batch data from EigenDA request ID",
 			Action:  retrieve,
+			Flags:   flags,
+		},
+		{
+			Name:    "test-etherman",
+			Aliases: []string{},
+			Usage:   "Test etherman basic functionality",
+			Action:  testEtherman,
 			Flags:   flags,
 		},
 	}

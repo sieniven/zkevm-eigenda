@@ -18,7 +18,7 @@ func retrieve(cliCtx *cli.Context) error {
 	da := dataavailability.New(c.EigenDAClient)
 
 	// Get EigenDA blob information
-	requestId := cliCtx.String(config.RequestID)
+	requestId := cliCtx.String(config.FlagRequestID)
 	id := []byte(requestId)
 	batchesData, err := da.GetBatchL2DataFromRequestId(cliCtx.Context, id)
 	if err != nil {

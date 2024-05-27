@@ -24,7 +24,7 @@ func start(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	// Initialize eth manager instance
+	// Initialize ether manager instance
 	etherMan, err := newEtherman(*c)
 	if err != nil {
 		panic(err)
