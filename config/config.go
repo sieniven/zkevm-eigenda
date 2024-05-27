@@ -20,6 +20,7 @@ import (
 const (
 	FlagCfg     = "cfg"
 	FlagNetwork = "network"
+	RequestID   = "requestid"
 )
 
 // Represents the configuration of the entire mock Polygon CDK Node

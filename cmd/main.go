@@ -39,12 +39,21 @@ var networkJsonFlag = cli.BoolFlag{
 	Value:    false,
 }
 
+var blobIdFlag = cli.StringFlag{
+	Name:     config.RequestID,
+	Aliases:  []string{"id"},
+	Usage:    "EigenDA blob Request ID",
+	Required: false,
+	Value:    "",
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
 	flags := []cli.Flag{
 		&configFileFlag,
 		&networkJsonFlag,
+		&blobIdFlag,
 	}
 	app.Commands = []*cli.Command{
 		{
@@ -66,6 +75,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Test the EigenDA provider instance functionality",
 			Action:  testDAProvider,
+			Flags:   flags,
+		},
+		{
+			Name:    "retrieve",
+			Aliases: []string{},
+			Usage:   "Retrieve batch data from EigenDA request ID",
+			Action:  retrieve,
 			Flags:   flags,
 		},
 	}

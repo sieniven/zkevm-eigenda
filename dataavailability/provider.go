@@ -49,7 +49,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		fmt.Println("failed to send blob to EigenDA disperser: ", err)
 		return BlobInfo{}, nil
 	}
-	fmt.Println("sent blob to EigenDA disperser")
+	fmt.Println("sent blob to EigenDA disperser, request id: ", string(idBytes))
 
 	var blobStatusReply *disperser_rpc.BlobStatusReply
 	for {
@@ -142,4 +142,31 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		}
 	}
 	return nil, fmt.Errorf("failed to get batch data from hash, corrupted DA storage")
+}
+
+// Get blob information from request ID
+func (d *DataAvailabilityProvider) GetBlobInformationFromId(ctx context.Context, requestId []byte) (BlobInfo, error) {
+	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
+	if err != nil {
+		fmt.Printf("error getting blob status: %v\n", err)
+		return BlobInfo{}, err
+	}
+
+	// Get blob status
+	status := blobStatusReply.GetStatus()
+	confirmedFlag := status == disperser_rpc.BlobStatus_CONFIRMED || status == disperser_rpc.BlobStatus_FINALIZED
+
+	if confirmedFlag {
+		info := blobStatusReply.GetInfo()
+		blob := info.GetBlobVerificationProof()
+		blobInfo := BlobInfo{
+			BlobIndex:            blob.BlobIndex,
+			BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
+			BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
+			ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+		}
+		return blobInfo, nil
+	} else {
+		return BlobInfo{}, fmt.Errorf("EigenDA blob not confirmed, unable to retrieve blob information")
+	}
 }
