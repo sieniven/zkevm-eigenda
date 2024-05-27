@@ -351,6 +351,11 @@ func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error)
 	return suggestedGasPrice, nil
 }
 
+// Get current balance at latest known block
+func (etherMan *Client) BalanceAt(ctx context.Context, account common.Address) (*big.Int, error) {
+	return etherMan.EthClient.BalanceAt(ctx, account, nil)
+}
+
 // EstimateGas returns the estimated gas for the tx
 func (etherMan *Client) EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error) {
 	return etherMan.EthClient.EstimateGas(ctx, ethereum.CallMsg{

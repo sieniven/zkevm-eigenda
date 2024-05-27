@@ -55,6 +55,14 @@ var toFlag = cli.StringFlag{
 	Value:    "",
 }
 
+var passwordFlag = cli.StringFlag{
+	Name:     config.FlagPassword,
+	Aliases:  []string{"p"},
+	Usage:    "set keystore password",
+	Required: false,
+	Value:    "password",
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
@@ -63,6 +71,7 @@ func main() {
 		&networkJsonFlag,
 		&blobIdFlag,
 		&toFlag,
+		&passwordFlag,
 	}
 	app.Commands = []*cli.Command{
 		{
@@ -98,6 +107,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Test etherman basic functionality",
 			Action:  testEtherman,
+			Flags:   flags,
+		},
+		{
+			Name:    "create-keystore",
+			Aliases: []string{},
+			Usage:   "Create new eth keystore",
+			Action:  createKeystore,
 			Flags:   flags,
 		},
 	}

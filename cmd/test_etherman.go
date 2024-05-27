@@ -44,30 +44,33 @@ func testEtherman(cliCtx *cli.Context) error {
 	// Get from address
 	from := c.SequenceSender.SenderAddress
 
+	// Log current balance of from address
+	balance, err := etherMan.BalanceAt(cliCtx.Context, from)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Current account balance is: ", balance.Int64())
+
 	// Get to address
 	toStr := cliCtx.String(config.FlagTo)
 	to := common.HexToAddress(toStr)
 
-	// Get nonce
-	nonce, err := etherMan.CurrentNonce(cliCtx.Context, c.SequenceSender.SenderAddress)
-	if err != nil {
-		panic(err)
-	}
-
-	// Set default value top 10 ether
-	value := big.NewInt(10)
+	// Set default value
+	value := big.NewInt(997000000000000000)
 
 	// Get gas
 	gas, err := etherMan.EstimateGas(cliCtx.Context, from, &to, value, []byte{})
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Estimate gas is: ", gas)
 
 	// get gas price
 	gasPrice, err := etherMan.SuggestedGasPrice(cliCtx.Context)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("The suggested gasPrice before margin factor is: ", gasPrice)
 	// adjust the gas price by the margin factor
 	marginFactor := big.NewFloat(0).SetFloat64(c.EthTxManager.GasPriceMarginFactor)
 	fGasPrice := big.NewFloat(0).SetInt(gasPrice)
@@ -81,13 +84,21 @@ func testEtherman(cliCtx *cli.Context) error {
 			gasPrice.Set(maxGasPrice)
 		}
 	}
+	fmt.Println("The suggested gasPrice after margin factor is: ", gasPrice)
+
+	// Get nonce
+	nonce, err := etherMan.CurrentNonce(cliCtx.Context, c.SequenceSender.SenderAddress)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Nonce: ", nonce)
 
 	// Sign test tx
 	tx := types.NewTx(&types.LegacyTx{
 		To:       &to,
 		Nonce:    nonce,
 		Value:    value,
-		Gas:      gas + c.SequenceSender.GasOffset,
+		Gas:      gas,
 		GasPrice: gasPrice,
 	})
 	signedtx, err := etherMan.SignTx(cliCtx.Context, from, tx)
@@ -100,6 +111,7 @@ func testEtherman(cliCtx *cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Sent signed tx to node")
 
 	return nil
 }
