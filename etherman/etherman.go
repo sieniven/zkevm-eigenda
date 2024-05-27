@@ -1,27 +1,45 @@
 package etherman
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonrollupmanager"
 	polygonzkevm "github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
 	ethmanTypes "github.com/sieniven/zkevm-eigenda/etherman/types"
+	"github.com/sieniven/zkevm-eigenda/log"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+)
+
+var (
+	sequenceBatchesSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64,bytes32)")) // Used in oldZkEvm as well
+	// methodIDSequenceBatchesEtrog: MethodID for sequenceBatches in Etrog
+	methodIDSequenceBatchesEtrog = []byte{0xec, 0xef, 0x3f, 0x99} // nolint:unused // 0xecef3f99
+	// methodIDSequenceBatchesElderberry: MethodID for sequenceBatches in Elderberry
+	methodIDSequenceBatchesElderberry = []byte{0xde, 0xf5, 0x7e, 0x54} // nolint:unused // 0xdef57e54 sequenceBatches((bytes,bytes32,uint64,bytes32)[],uint64,uint64,address)
+	// methodIDSequenceBatchesValidiumEtrog: MethodID for sequenceBatchesValidium in Etrog
+	methodIDSequenceBatchesValidiumEtrog = []byte{0x2d, 0x72, 0xc2, 0x48} // 0x2d72c248 sequenceBatchesValidium((bytes32,bytes32,uint64,bytes32)[],address,bytes)
+	// methodIDSequenceBatchesValidiumElderberry: MethodID for sequenceBatchesValidium in Elderberry
+	methodIDSequenceBatchesValidiumElderberry = []byte{0xdb, 0x5b, 0x0e, 0xd7} // 0xdb5b0ed7 sequenceBatchesValidium((bytes32,bytes32,uint64,bytes32)[],uint64,uint64,address,bytes)
 )
 
 type externalGasProviders struct {
@@ -40,7 +58,7 @@ type Client struct {
 	l1Cfg         L1Config
 	cfg           Config
 	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
-	da            dataAbilitier
+	da            dataavailability.BatchDataProvider
 }
 
 type ethereumClient interface {
@@ -387,7 +405,7 @@ func (etherMan *Client) WaitTxToBeMined(parentCtx context.Context, tx *types.Tra
 }
 
 // SetDataProvider sets the data provider
-func (etherMan *Client) SetDataProvider(da dataAbilitier) {
+func (etherMan *Client) SetDataProvider(da dataavailability.BatchDataProvider) {
 	fmt.Println("setting data provider")
 	etherMan.da = da
 }
@@ -411,6 +429,87 @@ func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transact
 		return revertMessage, nil
 	}
 	return "", nil
+}
+
+func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]ethmanTypes.SequencedBatch, error) {
+	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	sequencedBatches := []ethmanTypes.SequencedBatch{}
+	for _, vLog := range logs {
+		seqs, err := etherMan.processEvent(ctx, vLog)
+		if err != nil {
+			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
+			return nil, err
+		}
+		sequencedBatches = append(sequencedBatches, seqs...)
+	}
+	return sequencedBatches, nil
+}
+
+func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) ([]ethmanTypes.SequencedBatch, error) {
+	switch vLog.Topics[0] {
+	case sequenceBatchesSignatureHash:
+		return etherMan.sequencedBatchesEvent(ctx, vLog)
+	}
+	fmt.Printf("Event not registered: %+v\n", vLog)
+	return nil, nil
+}
+
+func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log) ([]ethmanTypes.SequencedBatch, error) {
+	fmt.Printf("SequenceBatches event detected: txHash: %s\n", common.Bytes2Hex(vLog.TxHash[:]))
+
+	sb, err := etherMan.ZkEVM.ParseSequenceBatches(vLog)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read the tx for this event.
+	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
+	if err != nil {
+		return nil, err
+	}
+	if tx.Hash() != vLog.TxHash {
+		return nil, fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
+	}
+	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("tx hash: %s, msg form:%v, to:%v\n", tx.Hash().String(), msg.From, msg.To)
+
+	var sequences []ethmanTypes.SequencedBatch
+	if sb.NumBatch != 1 {
+		methodId := tx.Data()[:4]
+		log.Debugf("MethodId: %s", common.Bytes2Hex(methodId))
+		if bytes.Equal(methodId, methodIDSequenceBatchesEtrog) ||
+			bytes.Equal(methodId, methodIDSequenceBatchesValidiumEtrog) {
+			sequences, err = decodeSequencesEtrog(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding the sequences (etrog): %v", err)
+			}
+		} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) ||
+			bytes.Equal(methodId, methodIDSequenceBatchesValidiumElderberry) {
+			sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding the sequences (elderberry): %v", err)
+			}
+		} else {
+			return nil, fmt.Errorf("error decoding the sequences: methodId %s unknown", common.Bytes2Hex(methodId))
+		}
+	} else {
+		log.Info("initial transaction sequence...")
+		sequences = append(sequences, ethmanTypes.SequencedBatch{
+			BatchNumber:   1,
+			SequencerAddr: msg.From,
+			TxHash:        vLog.TxHash,
+			Nonce:         msg.Nonce,
+		})
+	}
+
+	fmt.Println("Successfully obtained and sequenced batches event")
+	return sequences, nil
 }
 
 // RevertReason returns the revert reason for a tx that has a receipt with failed status
@@ -447,4 +546,161 @@ func RevertReason(ctx context.Context, c ethereumClient, tx *types.Transaction, 
 	}
 
 	return unpackedMsg, nil
+}
+
+func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]ethmanTypes.SequencedBatch, error) {
+	// Extract coded txs.
+	// Load contract ABI
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeSequencedBatches(smcAbi, txData, ethmanTypes.FORKID_ELDERBERRY, lastBatchNumber, sequencer, txHash, nonce, l1InfoRoot, da)
+}
+
+func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash,
+	da dataavailability.BatchDataProvider) ([]ethmanTypes.SequencedBatch, error) {
+	// Extract coded txs.
+	// Load contract ABI
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeSequencedBatches(smcAbi, txData, ethmanTypes.FORKID_ETROG, lastBatchNumber, sequencer, txHash, nonce, l1InfoRoot, da)
+}
+
+// decodeSequencedBatches decodes provided data, based on the funcName, whether it is rollup or validium data and returns sequenced batches
+func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBatchNumber uint64,
+	sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash,
+	da dataavailability.BatchDataProvider) ([]ethmanTypes.SequencedBatch, error) {
+	// Recover Method from signature and ABI
+	method, err := smcAbi.MethodById(txData[:4])
+	if err != nil {
+		return nil, err
+	}
+
+	// Unpack method inputs
+	data, err := method.Inputs.Unpack(txData[4:])
+	if err != nil {
+		return nil, err
+	}
+	bytedata, err := json.Marshal(data[0])
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		maxSequenceTimestamp     uint64
+		initSequencedBatchNumber uint64
+		coinbase                 common.Address
+		dataAvailabilityMsg      []byte
+	)
+
+	switch method.Name {
+	case "sequenceBatches":
+		var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
+		err := json.Unmarshal(bytedata, &sequences)
+		if err != nil {
+			return nil, err
+		}
+
+		switch forkID {
+		case ethmanTypes.FORKID_ETROG:
+			coinbase = data[1].(common.Address)
+
+		case ethmanTypes.FORKID_ELDERBERRY:
+			maxSequenceTimestamp = data[1].(uint64)
+			initSequencedBatchNumber = data[2].(uint64)
+			coinbase = data[3].(common.Address)
+		}
+
+		sequencedBatches := make([]ethmanTypes.SequencedBatch, len(sequences))
+		for i, seq := range sequences {
+			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+			s := seq
+			batch := ethmanTypes.SequencedBatch{
+				BatchNumber:                     bn,
+				L1InfoRoot:                      &l1InfoRoot,
+				SequencerAddr:                   sequencer,
+				TxHash:                          txHash,
+				Nonce:                           nonce,
+				Coinbase:                        coinbase,
+				PolygonRollupBaseEtrogBatchData: &s,
+			}
+			if forkID >= ethmanTypes.FORKID_ELDERBERRY {
+				batch.SequencedBatchElderberryData = &ethmanTypes.SequencedBatchElderberryData{
+					MaxSequenceTimestamp:     maxSequenceTimestamp,
+					InitSequencedBatchNumber: initSequencedBatchNumber,
+				}
+			}
+			sequencedBatches[i] = batch
+		}
+
+		return sequencedBatches, nil
+	case "sequenceBatchesValidium":
+		var sequencesValidium []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
+		err := json.Unmarshal(bytedata, &sequencesValidium)
+		if err != nil {
+			return nil, err
+		}
+
+		switch forkID {
+		case ethmanTypes.FORKID_ETROG:
+			coinbase = data[1].(common.Address)
+			dataAvailabilityMsg = data[2].([]byte)
+
+		case ethmanTypes.FORKID_ELDERBERRY:
+			maxSequenceTimestamp = data[1].(uint64)
+			initSequencedBatchNumber = data[2].(uint64)
+			coinbase = data[3].(common.Address)
+			dataAvailabilityMsg = data[4].([]byte)
+		}
+
+		sequencedBatches := make([]ethmanTypes.SequencedBatch, len(sequencesValidium))
+
+		var (
+			batchNums []uint64
+			hashes    []common.Hash
+		)
+
+		for i, validiumData := range sequencesValidium {
+			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
+			batchNums = append(batchNums, bn)
+			hashes = append(hashes, validiumData.TransactionsHash)
+		}
+		batchL2Data, err := da.GetBatchL2Data(batchNums, hashes, dataAvailabilityMsg)
+		if err != nil {
+			return nil, err
+		}
+		for i, bn := range batchNums {
+			s := polygonzkevm.PolygonRollupBaseEtrogBatchData{
+				Transactions:         batchL2Data[i],
+				ForcedGlobalExitRoot: sequencesValidium[i].ForcedGlobalExitRoot,
+				ForcedTimestamp:      sequencesValidium[i].ForcedTimestamp,
+				ForcedBlockHashL1:    sequencesValidium[i].ForcedBlockHashL1,
+			}
+			batch := ethmanTypes.SequencedBatch{
+				BatchNumber:                     bn,
+				L1InfoRoot:                      &l1InfoRoot,
+				SequencerAddr:                   sequencer,
+				TxHash:                          txHash,
+				Nonce:                           nonce,
+				Coinbase:                        coinbase,
+				PolygonRollupBaseEtrogBatchData: &s,
+			}
+			if forkID >= ethmanTypes.FORKID_ELDERBERRY {
+				elderberry := &ethmanTypes.SequencedBatchElderberryData{
+					MaxSequenceTimestamp:     maxSequenceTimestamp,
+					InitSequencedBatchNumber: initSequencedBatchNumber,
+				}
+				batch.SequencedBatchElderberryData = elderberry
+			}
+			sequencedBatches[i] = batch
+		}
+		return sequencedBatches, nil
+	}
+
+	return nil, fmt.Errorf("unexpected method called in sequence batches transaction: %s", method.RawName)
 }

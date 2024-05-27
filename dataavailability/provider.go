@@ -41,13 +41,13 @@ func (d *DataAvailabilityProvider) Init() error {
 	return nil
 }
 
-func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) (BlobInfo, error) {
+func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Send blob to EigenDA disperser
 	blobData := EncodeSequence(batchesData)
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
 		fmt.Println("failed to send blob to EigenDA disperser: ", err)
-		return BlobInfo{}, nil
+		return nil, nil
 	}
 	fmt.Println("sent blob to EigenDA disperser, request id: ", string(idBytes))
 
@@ -56,7 +56,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		blobStatusReply, err = d.client.GetBlobStatus(ctx, idBytes)
 		if err != nil {
 			fmt.Printf("error getting blob status: %v\n", err)
-			return BlobInfo{}, err
+			return nil, err
 		}
 
 		// Get blob status
@@ -71,22 +71,32 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 
 	if blobStatusReply == nil {
 		err = fmt.Errorf("empty blob status reply returned")
-		return BlobInfo{}, err
+		return nil, err
 	}
 
 	info := blobStatusReply.GetInfo()
 	blob := info.GetBlobVerificationProof()
-	blobInfo := BlobInfo{
-		BlobIndex:            blob.BlobIndex,
-		BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-		BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-		ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+	msg, err := TryToDataAvailabilityMessage(BlobInfo{
+		BlobIndex:       blob.BlobIndex,
+		BatchHeaderHash: blob.BatchMetadata.BatchHeaderHash,
+	})
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
 	}
 
-	return blobInfo, nil
+	return msg, nil
 }
 
-func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, blobInfo BlobInfo) ([][]byte, error) {
+func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
+	// Try decoding data availability message
+	blobInfo, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	// Get blob from EigenDA layer
 	var batchesData [][]byte
 	for _, hash := range batchHashes {
 		batchData, err := d.GetBatchL2Data(ctx, hash)
@@ -106,9 +116,16 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	return batchesData, nil
 }
 
-func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, batchHash common.Hash, blobInfo BlobInfo) error {
+func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
+	// Try decoding data availability message
+	blobInfo, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
 	// Store blob information inside in-memory DA storage
-	err := d.state.Add(batchHash, blobInfo)
+	err = d.state.Add(batchHash, blobInfo)
 	if err != nil {
 		fmt.Printf("error adding blob into storage: %v\n", err)
 		// Should not come here, but we will panic the mock node if indexing fails
@@ -145,11 +162,11 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 }
 
 // Get blob information from request ID
-func (d *DataAvailabilityProvider) GetBlobInformationFromId(ctx context.Context, requestId []byte) (BlobInfo, error) {
+func (d *DataAvailabilityProvider) GetBlobInformationFromId(ctx context.Context, requestId []byte) ([]byte, error) {
 	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
 	if err != nil {
 		fmt.Printf("error getting blob status: %v\n", err)
-		return BlobInfo{}, err
+		return nil, err
 	}
 
 	// Get blob status
@@ -159,14 +176,16 @@ func (d *DataAvailabilityProvider) GetBlobInformationFromId(ctx context.Context,
 	if confirmedFlag {
 		info := blobStatusReply.GetInfo()
 		blob := info.GetBlobVerificationProof()
-		blobInfo := BlobInfo{
-			BlobIndex:            blob.BlobIndex,
-			BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-			BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-			ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+		msg, err := TryToDataAvailabilityMessage(BlobInfo{
+			BlobIndex:       blob.BlobIndex,
+			BatchHeaderHash: blob.BatchMetadata.BatchHeaderHash,
+		})
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
 		}
-		return blobInfo, nil
+		return msg, nil
 	} else {
-		return BlobInfo{}, fmt.Errorf("EigenDA blob not confirmed, unable to retrieve blob information")
+		return nil, fmt.Errorf("EigenDA blob not confirmed, unable to retrieve blob information")
 	}
 }

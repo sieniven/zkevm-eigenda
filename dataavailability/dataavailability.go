@@ -12,6 +12,7 @@ import (
 // DataAvailability is a mock implementation of the zkevm DataAvailability integration. It implements
 // an abstract data availability integration that holds the DABackend implementation as composition.
 type DataAvailability struct {
+	BatchDataProvider
 	ctx     context.Context
 	backend DABackender
 }
@@ -27,7 +28,7 @@ func New(cfg Config) *DataAvailability {
 
 // PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 // as expected by the contract
-func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) (BlobInfo, error) {
+func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
 	// Pre-process sequence data to send to the DA layer
 	batchesData := [][]byte{}
 	batchesHash := []common.Hash{}
@@ -60,9 +61,9 @@ func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.S
 // 3. From DA backend
 //
 // For this minimal mock implementation, we will test the lowest priority return method from the DA backend.
-func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []common.Hash, blobInfo BlobInfo) ([][]byte, error) {
+func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	fmt.Printf("trying to get data from DA backend for batches %v\n", batchNums)
-	return d.backend.GetSequence(d.ctx, batchHashes, blobInfo)
+	return d.backend.GetSequence(d.ctx, batchHashes, dataAvailabilityMessage)
 }
 
 // Get batch data from EigenDA request ID

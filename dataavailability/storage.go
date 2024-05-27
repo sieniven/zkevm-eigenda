@@ -9,13 +9,6 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-type BlobInfo struct {
-	BlobIndex            uint32
-	BatchHeaderHash      []byte
-	BatchRoot            []byte
-	ReferenceBlockNumber uint
-}
-
 // In-memory data availability storage for the mock implementation.
 // Will need a thorough design to think through the backend storage for DA information on
 // the node. For now, this mock node PoC quickly implements this by indexing block hashes

@@ -82,10 +82,8 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 				info := blobStatusReply.GetInfo()
 				blob := info.GetBlobVerificationProof()
 				blobInfo := dataavailability.BlobInfo{
-					BlobIndex:            blob.BlobIndex,
-					BatchHeaderHash:      blob.BatchMetadata.BatchHeaderHash,
-					BatchRoot:            blob.BatchMetadata.BatchHeader.BatchRoot,
-					ReferenceBlockNumber: uint(blob.BatchMetadata.ConfirmationBlockNumber),
+					BlobIndex:       blob.BlobIndex,
+					BatchHeaderHash: blob.BatchMetadata.BatchHeaderHash,
 				}
 				if err != nil {
 					panic(err)
