@@ -37,4 +37,7 @@ type Config struct {
 
 	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
 	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
+
+	// Mock config to replicate the BatchConstraintsCfg in the zkevm node.
+	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
 }

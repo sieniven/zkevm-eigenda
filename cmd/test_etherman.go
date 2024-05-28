@@ -56,7 +56,7 @@ func testEtherman(cliCtx *cli.Context) error {
 	to := common.HexToAddress(toStr)
 
 	// Set default value
-	value := big.NewInt(997000000000000000)
+	value := big.NewInt(999700000000000000)
 
 	// Get gas
 	gas, err := etherMan.EstimateGas(cliCtx.Context, from, &to, value, []byte{})

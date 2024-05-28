@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"math/rand"
 	"sync/atomic"
 	"time"
 
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/etherman/types"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
+	"github.com/sieniven/zkevm-eigenda/log"
+	batchTypes "github.com/sieniven/zkevm-eigenda/sequencesender/types"
 )
 
 const (
@@ -87,8 +88,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		fmt.Println("getting sequences to send")
 		s.sendSequenceFlag.Store(false)
 
-		numSequences := rand.Intn(10)
-		sequences, err := s.getMockSequencesToSend(numSequences)
+		sequences, err := s.getMockSequencesToSend()
 		if err != nil || len(sequences) == 0 {
 			if err != nil {
 				fmt.Printf("error getting sequences: %v\n", err)
@@ -100,17 +100,16 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		}
 
 		sequenceCount := len(sequences)
-		fmt.Printf("sending sequences to L1. From batch %d to batch %d\n", sequences[0].BatchNumber, sequences[0].BatchNumber+uint64(sequenceCount))
-
-		// Add sequence to be monitored
 		firstSequence := sequences[0]
 		lastSequence := sequences[sequenceCount-1]
+		fmt.Printf("sending sequences to L1. From batch %d to batch %d\n", firstSequence.BatchNumber, lastSequence.BatchNumber)
+
+		// Add sequence to be monitored
 		daMessage, err := s.da.PostSequence(ctx, sequences)
 		if err != nil {
 			fmt.Printf("error posting sequences to the data availability protocol: %v\n", err)
 			return
 		}
-
 		to, data, err := s.etherman.BuildMockSequenceBatchesTxData(
 			s.cfg.SenderAddress, sequences, uint64(lastSequence.LastL2BLockTimestamp), firstSequence.BatchNumber-1, s.cfg.L2Coinbase, daMessage)
 		if err != nil {
@@ -131,36 +130,40 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 }
 
 // getMockSequencesToSend is a mock function to replicate Polygon CDK's getSequencesToSend.
-// We generate an array of mock sequences to be sent to the L1.
-func (s *SequenceSender) getMockSequencesToSend(numSequences int) ([]types.Sequence, error) {
+// We generate mock batches with max batch data bytes size and convert them into sequences.
+func (s *SequenceSender) getMockSequencesToSend() ([]types.Sequence, error) {
+	// Generate mock batch data for max configured size
+	data := make([]byte, s.cfg.MaxBatchBytesSize)
+	for i := uint64(0); i < s.cfg.MaxBatchBytesSize; i++ {
+		data[i] = byte(10)
+	}
+
 	sequences := []types.Sequence{}
-	data := []byte("hihihihihihihihihihihihihihihihihihi")
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
-	for i := 0; i < numSequences; i++ {
-		// Create a mock sequence
-		seq := types.Sequence{
-			BatchL2Data:          data,
-			BatchNumber:          s.lastBatchNum,
-			LastL2BLockTimestamp: time.Now().Unix(),
+	for {
+		// Create mock batch
+		batch := batchTypes.Batch{
+			BatchNumber: uint64(s.lastBatchNum),
+			Coinbase:    s.cfg.L2Coinbase,
+			BatchL2Data: data,
+			Timestamp:   time.Now(),
 		}
 		s.lastBatchNum += 1
+
+		seq := types.Sequence{
+			BatchL2Data:          batch.BatchL2Data,
+			BatchNumber:          batch.BatchNumber,
+			LastL2BLockTimestamp: batch.Timestamp.Unix(),
+		}
 		sequences = append(sequences, seq)
 		if len(sequences) == int(s.cfg.MaxBatchesForL1) {
-			fmt.Printf(
-				"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached\n",
+			log.Infof(
+				"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
 				s.cfg.MaxBatchesForL1,
 			)
-			return sequences, nil
+			break
 		}
 	}
-
-	// Reach the latest batch. Decide if its worth it to send the sequence, or wait for new batches
-	if len(sequences) == 0 {
-		fmt.Println("no batches to be sequenced")
-		return nil, nil
-	}
-
-	fmt.Println("sequences should be sent to L1, too long since didnt send anything to L1")
 	return sequences, nil
 }

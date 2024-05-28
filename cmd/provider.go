@@ -22,8 +22,11 @@ func testDAProvider(cliCtx *cli.Context) error {
 	da := dataavailability.New(c.EigenDAClient)
 
 	// Generate mock batch data
-	stringData := "hihihihihihihihihihihihihihihihihihi"
-	data := []byte(stringData)
+	// Generate mock batch data for max configured size
+	data := make([]byte, c.SequenceSender.MaxBatchBytesSize)
+	for i := uint64(0); i < c.SequenceSender.MaxBatchBytesSize; i++ {
+		data[i] = byte(10)
+	}
 
 	batches := []batchTypes.Batch{}
 	batchNums := []uint64{}
@@ -58,12 +61,13 @@ func testDAProvider(cliCtx *cli.Context) error {
 		panic(err)
 	}
 
-	for _, batch := range batchesData {
-		if stringData == string(batch) {
-			fmt.Println("Valid batch data :)")
-		} else {
-			panic(fmt.Errorf("invalid batch data"))
+	for _, batchData := range batchesData {
+		for _, b := range batchData {
+			if b != byte(10) {
+				panic(fmt.Errorf("invalid batch data"))
+			}
 		}
+		fmt.Println("Valid batch data :)")
 	}
 
 	fmt.Println("Provider posted and retrieved valid batches data from EigenDA layer")
