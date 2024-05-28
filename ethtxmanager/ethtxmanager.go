@@ -478,7 +478,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		if lastReceiptChecked.Status == types.ReceiptStatusSuccessful {
 			mTx.status = MonitoredTxStatusConfirmed
 			mTx.blockNumber = lastReceiptChecked.BlockNumber
-			fmt.Printf("Tx hash %v confirmed", signedTx.Hash())
+			fmt.Printf("Tx hash %v confirmed\n", signedTx.Hash())
 		} else {
 			// if we should continue to monitor, we move to the next one and this will
 			// be reviewed in the next monitoring cycle
@@ -488,7 +488,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 			// otherwise we understand this monitored tx has failed
 			mTx.status = MonitoredTxStatusFailed
 			mTx.blockNumber = lastReceiptChecked.BlockNumber
-			fmt.Printf("Tx hash %v failed", signedTx.Hash())
+			fmt.Printf("Tx hash %v failed\n", signedTx.Hash())
 		}
 
 		// update monitored tx changes into storage
