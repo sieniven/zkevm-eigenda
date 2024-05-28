@@ -110,6 +110,13 @@ func main() {
 			Flags:   flags,
 		},
 		{
+			Name:    "test-ethtxmanager",
+			Aliases: []string{},
+			Usage:   "Test ethtxmanaager basic functionality",
+			Action:  testEthTxManager,
+			Flags:   flags,
+		},
+		{
 			Name:    "create-keystore",
 			Aliases: []string{},
 			Usage:   "Create new eth keystore",

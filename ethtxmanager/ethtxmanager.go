@@ -641,7 +641,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 				continue
 			}
 
-			// If the result is failed, we need to go around it and rebuild a batch verificataion
+			// If the result is failed, we need to go around it and rebuild a batch verification
 			if result.Status == MonitoredTxStatusFailed {
 				resultHandler(result)
 				continue
