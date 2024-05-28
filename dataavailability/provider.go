@@ -53,7 +53,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
 		fmt.Println("failed to send blob to EigenDA disperser: ", err)
-		return nil, nil
+		return nil, err
 	}
 	fmt.Println("sent blob to EigenDA disperser, request id: ", string(idBytes))
 

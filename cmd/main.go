@@ -89,10 +89,10 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "provider-test",
+			Name:    "da-test",
 			Aliases: []string{},
-			Usage:   "Test the EigenDA provider instance functionality",
-			Action:  testDAProvider,
+			Usage:   "Test the EigenDA data availability instance functionality",
+			Action:  testDataAvailability,
 			Flags:   flags,
 		},
 		{
