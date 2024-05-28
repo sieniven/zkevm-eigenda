@@ -69,11 +69,11 @@ func testEthTxManager(cliCtx *cli.Context) error {
 	flag := true
 	for flag {
 		etm.ProcessPendingMonitoredTxs(cliCtx.Context, owner, func(result ethtxmanager.MonitoredTxResult) {
-			if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-				fmt.Println("failed to send tx")
+			if result.Status == ethtxmanager.MonitoredTxStatusFailed || result.Status == ethtxmanager.MonitoredTxStatusConfirmed {
 				flag = false
 			}
 		})
 	}
+	etm.Stop()
 	return nil
 }

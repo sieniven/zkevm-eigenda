@@ -65,9 +65,7 @@ func (s *MonitoredTxsStorage) GetByStatus(ctx context.Context, owner *string, st
 
 	mTxs := []monitoredTx{}
 	for _, mTx := range s.inner {
-		if owner != nil && mTx.owner == *owner {
-			mTxs = append(mTxs, mTx)
-		} else {
+		if owner == nil || *owner == mTx.owner {
 			for _, status := range statusesFilter {
 				if mTx.status == status {
 					mTxs = append(mTxs, mTx)
@@ -146,6 +144,14 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		nonce: nonce, value: value, data: data,
 		gas: gas, gasOffset: gasOffset, gasPrice: gasPrice,
 		status: MonitoredTxStatusCreated,
+		// initialize empty map
+		history: map[common.Hash]bool{},
+		// blockNumber is unused here
+		blockNumber: big.NewInt(0),
+		// createdAt is unused here
+		createdAt: time.Now(),
+		// updatedAt is unused here
+		updatedAt: time.Now(),
 	}
 
 	// add to storage
@@ -153,7 +159,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	if err != nil {
 		return fmt.Errorf("failed to add tx to get monitored: %w", err)
 	}
-	fmt.Printf("created monitored tx: %v", mTx.id)
+	fmt.Printf("created monitored tx: %v\n", mTx.id)
 	return nil
 }
 
@@ -610,7 +616,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 		MonitoredTxStatusFailed,
 		MonitoredTxStatusConfirmed,
 	}
-	// Keep running until there are pending monitored txs
+	// Keep running until there are no pending monitored txs
 	for {
 		results, err := c.ResultsByStatus(ctx, owner, statusesFilter)
 		if err != nil {

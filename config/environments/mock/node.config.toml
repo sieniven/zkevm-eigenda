@@ -7,7 +7,7 @@ Outputs = ["stderr"]
 URL = "http://your.L1node.url"
 
 [EthTxManager]
-FrequencyToMonitorTxs = "1s"
+FrequencyToMonitorTxs = "3s"
 WaitTxToBeMined = "2m"
 ForcedGas = 0
 GasPriceMarginFactor = 1.1
