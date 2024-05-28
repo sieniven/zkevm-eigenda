@@ -43,5 +43,5 @@ type BatchDataProvider interface {
 
 type DataAvailabilityStorage interface {
 	// Stores the batch's blob information sent to the DA layer to the backend storage
-	StoreBlobStatus(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error
+	StoreDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error
 }

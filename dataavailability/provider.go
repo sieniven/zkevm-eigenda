@@ -23,7 +23,7 @@ type DataAvailabilityProvider struct {
 func NewDataProvider(cfg Config) *DataAvailabilityProvider {
 	// Initialize in-memory DA storage
 	s := DAStorage{
-		inner: map[common.Hash]BlobInfo{},
+		inner: map[common.Hash][]byte{},
 		mutex: &sync.RWMutex{},
 	}
 	signer := MockBlobRequestSigner{}
@@ -116,18 +116,18 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	return batchesData, nil
 }
 
-func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
+func (d *DataAvailabilityProvider) StoreDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
 	// Try decoding data availability message
-	blobInfo, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
+	_, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
 	// Store blob information inside in-memory DA storage
-	err = d.state.Add(batchHash, blobInfo)
+	err = d.state.Add(batchHash, dataAvailabilityMessage)
 	if err != nil {
-		fmt.Printf("error adding blob into storage: %v\n", err)
+		fmt.Printf("error adding data availability message into storage: %v\n", err)
 		// Should not come here, but we will panic the mock node if indexing fails
 		panic(err)
 	}
@@ -138,9 +138,14 @@ func (d *DataAvailabilityProvider) StoreBlobStatus(ctx context.Context, batchHas
 // GetBatchL2Data returns the data from the EigenDA layer operators. It checks the DA storage to get the
 // requestID used when submitting the batch data to the DA.
 func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash common.Hash) ([]byte, error) {
-	blobInfo, err := d.state.Get(hash)
+	msg, err := d.state.Get(hash)
 	if err != nil {
 		fmt.Println("failed to get blob info from DA storage")
+		return nil, err
+	}
+	blobInfo, err := TryFromDataAvailabilityMessage(msg)
+	if err != nil {
+		fmt.Println("failed to decode DA message")
 		return nil, err
 	}
 

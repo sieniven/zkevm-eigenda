@@ -38,20 +38,20 @@ func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.S
 		batchesHash = append(batchesHash, hash)
 	}
 
-	info, err := d.backend.PostSequence(ctx, batchesData)
+	msg, err := d.backend.PostSequence(ctx, batchesData)
 	if err != nil {
-		return info, nil
+		return nil, err
 	}
 
 	// Index the DA blob information to the batch hash in storage
 	for _, hash := range batchesHash {
-		err = d.backend.StoreBlobStatus(ctx, hash, info)
+		err = d.backend.StoreDataAvailabilityMessage(ctx, hash, msg)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 	}
 
-	return info, nil
+	return msg, nil
 }
 
 // GetBatchL2Data in the zkevm node implementation tries to return the data from a batch in the following

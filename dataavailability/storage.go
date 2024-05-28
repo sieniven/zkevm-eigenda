@@ -14,11 +14,11 @@ var ErrNotFound = errors.New("not found")
 // the node. For now, this mock node PoC quickly implements this by indexing block hashes
 // to the index of the sequence data that is submitted on the EigenDA layer.
 type DAStorage struct {
-	inner map[common.Hash]BlobInfo
+	inner map[common.Hash][]byte
 	mutex *sync.RWMutex
 }
 
-func (s *DAStorage) Get(hash common.Hash) (BlobInfo, error) {
+func (s *DAStorage) Get(hash common.Hash) ([]byte, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -26,20 +26,20 @@ func (s *DAStorage) Get(hash common.Hash) (BlobInfo, error) {
 	if ok {
 		return info, nil
 	} else {
-		return BlobInfo{}, ErrNotFound
+		return nil, ErrNotFound
 	}
 }
 
-func (s *DAStorage) Add(hash common.Hash, info BlobInfo) error {
+func (s *DAStorage) Add(hash common.Hash, message []byte) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.inner[hash] = info
+	s.inner[hash] = message
 	return nil
 }
 
-func (s *DAStorage) Update(hash common.Hash, info BlobInfo) error {
+func (s *DAStorage) Update(hash common.Hash, message []byte) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.inner[hash] = info
+	s.inner[hash] = message
 	return nil
 }
