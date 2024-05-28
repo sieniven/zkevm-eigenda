@@ -29,9 +29,9 @@ type SequenceRetriever interface {
 	GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error)
 }
 
-// BlobRetriever is used to retrieve blob information from EigenDA blob request ID
+// BlobRetriever is used to retrieve blob verification proof from EigenDA blob request ID
 type BlobRetriever interface {
-	GetBlobInformationFromId(ctx context.Context, requestID []byte) ([]byte, error)
+	GetBlobVerificationProofFromId(ctx context.Context, requestID []byte) ([]byte, error)
 }
 
 // BatchDataProvider is used to retrieve batch data

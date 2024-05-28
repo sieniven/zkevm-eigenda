@@ -32,17 +32,29 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 	}
 
 	// send mock sequence with provider
-	blobInfo, err := provider.PostSequence(context.Background(), mockBatches)
+	msg, err := provider.PostSequence(context.Background(), mockBatches)
 	assert.NoError(t, err)
-	assert.NotZero(t, blobInfo.BlobIndex)
-	assert.NotNil(t, blobInfo.BatchHeaderHash)
-	assert.NotEmpty(t, blobInfo.BatchHeaderHash)
-	assert.NotNil(t, blobInfo.BatchRoot)
-	assert.NotEmpty(t, blobInfo.BatchRoot)
-	assert.NotZero(t, blobInfo.ReferenceBlockNumber)
+	proof, err := TryFromDataAvailabilityMessage(msg)
+	assert.NoError(t, err)
+	assert.NotZero(t, proof.BatchId)
+	assert.NotZero(t, proof.BlobIndex)
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.QuorumNumbers)
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.QuorumNumbers)
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.SignedStakeForQuorums)
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.SignedStakeForQuorums)
+	assert.NotZero(t, proof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
+	assert.NotNil(t, proof.BatchMetadata.SignatoryRecordHash.Bytes())
+	assert.NotEmpty(t, proof.BatchMetadata.SignatoryRecordHash.Bytes())
+	assert.NotZero(t, proof.BatchMetadata.ConfirmationBlockNumber)
+	assert.NotNil(t, proof.InclusionProof)
+	assert.NotEmpty(t, proof.InclusionProof)
+	assert.NotNil(t, proof.QuorumIndices)
+	assert.NotEmpty(t, proof.QuorumIndices)
 
 	// Retrieve sequence with provider
-	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, blobInfo)
+	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, msg)
 
 	// Validate retrieved data
 	assert.NoError(t, err)
@@ -78,17 +90,29 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	}
 
 	// send mock sequence with provider
-	blobInfo, err := provider.PostSequence(context.Background(), mockBatches)
+	msg, err := provider.PostSequence(context.Background(), mockBatches)
 	assert.NoError(t, err)
-	assert.NotZero(t, blobInfo.BlobIndex)
-	assert.NotNil(t, blobInfo.BatchHeaderHash)
-	assert.NotEmpty(t, blobInfo.BatchHeaderHash)
-	assert.NotNil(t, blobInfo.BatchRoot)
-	assert.NotEmpty(t, blobInfo.BatchRoot)
-	assert.NotZero(t, blobInfo.ReferenceBlockNumber)
+	proof, err := TryFromDataAvailabilityMessage(msg)
+	assert.NoError(t, err)
+	assert.NotZero(t, proof.BatchId)
+	assert.NotZero(t, proof.BlobIndex)
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.QuorumNumbers)
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.QuorumNumbers)
+	assert.NotNil(t, proof.BatchMetadata.BatchHeader.SignedStakeForQuorums)
+	assert.NotEmpty(t, proof.BatchMetadata.BatchHeader.SignedStakeForQuorums)
+	assert.NotZero(t, proof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
+	assert.NotNil(t, proof.BatchMetadata.SignatoryRecordHash.Bytes())
+	assert.NotEmpty(t, proof.BatchMetadata.SignatoryRecordHash.Bytes())
+	assert.NotZero(t, proof.BatchMetadata.ConfirmationBlockNumber)
+	assert.NotNil(t, proof.InclusionProof)
+	assert.NotEmpty(t, proof.InclusionProof)
+	assert.NotNil(t, proof.QuorumIndices)
+	assert.NotEmpty(t, proof.QuorumIndices)
 
 	// Retrieve sequence with provider
-	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, blobInfo)
+	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, msg)
 
 	// Validate retrieved data
 	assert.NoError(t, err)
