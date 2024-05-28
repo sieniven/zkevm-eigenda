@@ -2,12 +2,18 @@ package dataavailability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
+)
+
+var (
+	ErrDisperseFailed         = errors.New("disperse blob on EigenDA layer failed")
+	ErrInsufficientSignatures = errors.New("insufficient signatures, confirmation threshold for blob not met")
 )
 
 // DataAvailabilityProvider is the EigenDA backend manager that holds the DA implementation.
@@ -63,6 +69,10 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		currStatus := blobStatusReply.GetStatus()
 		if currStatus == disperser_rpc.BlobStatus_CONFIRMED || currStatus == disperser_rpc.BlobStatus_FINALIZED {
 			break
+		} else if currStatus == disperser_rpc.BlobStatus_FAILED {
+			return nil, ErrDisperseFailed
+		} else if currStatus == disperser_rpc.BlobStatus_INSUFFICIENT_SIGNATURES {
+			return nil, ErrInsufficientSignatures
 		}
 
 		// Wait period before retrieving blob status
