@@ -43,8 +43,7 @@ func TestEncodeBlobData(t *testing.T) {
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
 	}
-	msg, err := TryToDataAvailabilityMessage(data)
-	assert.NoError(t, err)
+	msg := ToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 }
@@ -83,15 +82,12 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
 	}
-	msg, err := TryToDataAvailabilityMessage(data)
-	assert.NoError(t, err)
+	msg := ToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 
-	decoded_data, err := TryFromDataAvailabilityMessage(msg)
-	assert.NoError(t, err)
-
 	// Check blob header
+	decoded_data := FromDataAvailabilityMessage(msg)
 	assert.Equal(t, *data.BlobHeader.Commitment.X, *decoded_data.BlobHeader.Commitment.X)
 	assert.Equal(t, *data.BlobHeader.Commitment.Y, *decoded_data.BlobHeader.Commitment.Y)
 	assert.Equal(t, data.BlobHeader.DataLength, decoded_data.BlobHeader.DataLength)
@@ -150,8 +146,7 @@ func TestBlockHeaderHash(t *testing.T) {
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
 	}
-	hash, err := data.BlobVerificationProof.GetBatchHeaderHash()
-	assert.NoError(t, err)
+	hash := data.BlobVerificationProof.GetBatchHeaderHash()
 	assert.NotNil(t, hash)
 	assert.NotEmpty(t, hash)
 

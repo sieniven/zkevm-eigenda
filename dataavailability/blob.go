@@ -1,12 +1,12 @@
 package dataavailability
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
-	"strings"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -59,11 +59,6 @@ type BatchHeader struct {
 	// that has signed in the corresponding quorum in `quorumNumbers`
 	SignedStakeForQuorums []byte
 	ReferenceBlockNumber  uint32
-}
-
-type ReducedBatchHeader struct {
-	BlobHeadersRoot      common.Hash
-	ReferenceBlockNumber uint32
 }
 
 func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
@@ -124,64 +119,125 @@ func GetBlobVerificationProof(proof *disperser_rpc.BlobVerificationProof) (BlobV
 	}, nil
 }
 
-// Get abi-encoded Keccak-256 hash of the reduced batch header
-func (proof BlobVerificationProof) GetBatchHeaderHash() ([]byte, error) {
-	headerABI, err := abi.JSON(strings.NewReader(reducedBlockHeaderAbiJSON))
-	if err != nil {
-		fmt.Println("failed to parse ABI: ", err)
-		return nil, err
-	}
-
-	header := ReducedBatchHeader{
-		BlobHeadersRoot:      proof.BatchMetadata.BatchHeader.BlobHeadersRoot,
-		ReferenceBlockNumber: proof.BatchMetadata.BatchHeader.ReferenceBlockNumber,
-	}
-
-	data, err := headerABI.Pack(
-		"",
-		header,
-	)
-	if err != nil {
-		fmt.Println("failed to pack reduced block header: ", err)
-		return nil, err
-	}
-	return crypto.Keccak256(data), nil
+// Get Keccak-256 hash of the reduced batch header
+func (proof BlobVerificationProof) GetBatchHeaderHash() []byte {
+	var buf bytes.Buffer
+	buf.Write(proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	binary.Write(&buf, binary.BigEndian, proof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
+	data := buf.Bytes()
+	return crypto.Keccak256(data)
 }
 
-// Fallible conversion method if blob info is empty.
-func TryToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
-	blobABI, err := abi.JSON(strings.NewReader(blobInfoAbiJSON))
-	if err != nil {
-		fmt.Println("failed to parse ABI: ", err)
-		return nil, err
-	}
+func FromDataAvailabilityMessage(msg []byte) BlobData {
+	blobData := BlobData{}
+	buf := bytes.NewReader(msg)
 
-	data, err := blobABI.Pack("", blobData)
-	if err != nil {
-		fmt.Println("failed to pack blob data: ", err)
-		return nil, err
-	}
+	blobData.BlobHeader = DecodeBlobHeader(buf)
+	blobData.BlobVerificationProof = DecodeBlobVerificationProof(buf)
 
-	return data, nil
+	return blobData
 }
 
-// Fallible conversion method if data availability message encoding is incorrect.
-func TryFromDataAvailabilityMessage(msg []byte) (BlobData, error) {
-	blobABI, err := abi.JSON(strings.NewReader(blobInfoAbiJSON))
-	if err != nil {
-		fmt.Println("failed to parse ABI: ", err)
-		return BlobData{}, err
+func ToDataAvailabilityMessage(blobData BlobData) []byte {
+	var buf bytes.Buffer
+	EncodeBlobHeader(&buf, blobData.BlobHeader)
+	EncodeBlobVerificationProof(&buf, blobData.BlobVerificationProof)
+
+	return buf.Bytes()
+}
+
+func EncodeBlobHeader(buf *bytes.Buffer, header BlobHeader) {
+	buf.Write(header.Commitment.X.Bytes())
+	buf.Write(header.Commitment.Y.Bytes())
+
+	binary.Write(buf, binary.BigEndian, header.DataLength)
+
+	binary.Write(buf, binary.BigEndian, uint32(len(header.QuorumBlobParams)))
+	for _, param := range header.QuorumBlobParams {
+		buf.WriteByte(param.QuorumNumber)
+		buf.WriteByte(param.AdversaryThresholdPercentage)
+		buf.WriteByte(param.ConfirmationThresholdPercentage)
+		binary.Write(buf, binary.BigEndian, param.ChunkLength)
+	}
+}
+
+func EncodeBlobVerificationProof(buf *bytes.Buffer, proof BlobVerificationProof) {
+	binary.Write(buf, binary.BigEndian, proof.BatchId)
+	binary.Write(buf, binary.BigEndian, proof.BlobIndex)
+	EncodeBatchMetadata(buf, proof.BatchMetadata)
+	EncodeBytes(buf, proof.InclusionProof)
+	EncodeBytes(buf, proof.QuorumIndices)
+}
+
+func EncodeBatchMetadata(buf *bytes.Buffer, data BatchMetadata) {
+	buf.Write(data.BatchHeader.BlobHeadersRoot.Bytes())
+	EncodeBytes(buf, data.BatchHeader.QuorumNumbers)
+	EncodeBytes(buf, data.BatchHeader.SignedStakeForQuorums)
+	binary.Write(buf, binary.BigEndian, data.BatchHeader.ReferenceBlockNumber)
+
+	buf.Write(data.SignatoryRecordHash.Bytes())
+	binary.Write(buf, binary.BigEndian, data.ConfirmationBlockNumber)
+}
+
+func EncodeBytes(buf *bytes.Buffer, data []byte) {
+	binary.Write(buf, binary.BigEndian, uint32(len(data)))
+	buf.Write(data)
+}
+
+func DecodeBlobHeader(buf *bytes.Reader) BlobHeader {
+	header := BlobHeader{}
+	header.Commitment.X = new(big.Int).SetBytes(ReadBytes(buf, 32))
+	header.Commitment.Y = new(big.Int).SetBytes(ReadBytes(buf, 32))
+
+	binary.Read(buf, binary.BigEndian, &header.DataLength)
+
+	var quorumBlobParamsLength uint32
+	binary.Read(buf, binary.BigEndian, &quorumBlobParamsLength)
+	header.QuorumBlobParams = make([]QuorumBlobParam, quorumBlobParamsLength)
+	for i := uint32(0); i < quorumBlobParamsLength; i++ {
+		var param QuorumBlobParam
+		binary.Read(buf, binary.BigEndian, &param.QuorumNumber)
+		binary.Read(buf, binary.BigEndian, &param.AdversaryThresholdPercentage)
+		binary.Read(buf, binary.BigEndian, &param.ConfirmationThresholdPercentage)
+		binary.Read(buf, binary.BigEndian, &param.ChunkLength)
+		header.QuorumBlobParams[i] = param
 	}
 
-	var blobData BlobData
-	unpacked, err := blobABI.Constructor.Inputs.Unpack(msg)
-	if err != nil {
-		return BlobData{}, err
-	}
-	err = blobABI.Constructor.Inputs.Copy(&blobData, unpacked)
-	if err != nil {
-		return BlobData{}, err
-	}
+	return header
+}
 
-	return blobData, nil
+func DecodeBlobVerificationProof(buf *bytes.Reader) BlobVerificationProof {
+	proof := BlobVerificationProof{}
+	binary.Read(buf, binary.BigEndian, &proof.BatchId)
+	binary.Read(buf, binary.BigEndian, &proof.BlobIndex)
+	proof.BatchMetadata = DecodeBatchMetadata(buf)
+
+	proof.InclusionProof = DecodeBytes(buf)
+	proof.QuorumIndices = DecodeBytes(buf)
+
+	return proof
+}
+
+func DecodeBatchMetadata(buf *bytes.Reader) BatchMetadata {
+	data := BatchMetadata{}
+	data.BatchHeader.BlobHeadersRoot = common.BytesToHash(ReadBytes(buf, 32))
+	data.BatchHeader.QuorumNumbers = DecodeBytes(buf)
+	data.BatchHeader.SignedStakeForQuorums = DecodeBytes(buf)
+	binary.Read(buf, binary.BigEndian, &data.BatchHeader.ReferenceBlockNumber)
+	data.SignatoryRecordHash = common.BytesToHash(ReadBytes(buf, 32))
+	binary.Read(buf, binary.BigEndian, &data.ConfirmationBlockNumber)
+
+	return data
+}
+
+func DecodeBytes(buf *bytes.Reader) []byte {
+	var length uint32
+	binary.Read(buf, binary.BigEndian, &length)
+	return ReadBytes(buf, int(length))
+}
+
+func ReadBytes(buf *bytes.Reader, length int) []byte {
+	bytes := make([]byte, length)
+	buf.Read(bytes)
+	return bytes
 }
