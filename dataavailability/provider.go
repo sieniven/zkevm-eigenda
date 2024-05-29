@@ -85,13 +85,13 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	}
 
 	// Get abi-encoded data availability message
-	p := blobStatusReply.GetInfo().GetBlobVerificationProof()
-	proof, err := GetVerificationProof(p)
+	info := blobStatusReply.GetInfo()
+	data, err := GetBlobData(info)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
-	msg, err := TryToDataAvailabilityMessage(proof)
+	msg, err := TryToDataAvailabilityMessage(data)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -102,7 +102,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	// Try decoding data availability message
-	proof, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
+	blobData, err := TryFromDataAvailabilityMessage(dataAvailabilityMessage)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -117,8 +117,8 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 		}
 		batchesData = append(batchesData, batchData)
 	}
-	batchHeaderHash := proof.GetBatchHeaderHash()
-	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, proof.BlobIndex)
+	batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
+	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
@@ -156,13 +156,14 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		fmt.Println("failed to get blob info from DA storage")
 		return nil, err
 	}
-	blobInfo, err := TryFromDataAvailabilityMessage(msg)
+	blobData, err := TryFromDataAvailabilityMessage(msg)
 	if err != nil {
 		fmt.Println("failed to decode DA message")
 		return nil, err
 	}
 
-	reply, err := d.client.RetrieveBlob(ctx, blobInfo.BatchHeaderHash, blobInfo.BlobIndex)
+	batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
+	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
@@ -179,8 +180,8 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 	return nil, fmt.Errorf("failed to get batch data from hash, corrupted DA storage")
 }
 
-// Get blob information from request ID
-func (d *DataAvailabilityProvider) GetBlobVerificationProofFromId(ctx context.Context, requestId []byte) ([]byte, error) {
+// Get data availability message from request ID
+func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.Context, requestId []byte) ([]byte, error) {
 	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
 	if err != nil {
 		fmt.Printf("error getting blob status: %v\n", err)
@@ -192,13 +193,13 @@ func (d *DataAvailabilityProvider) GetBlobVerificationProofFromId(ctx context.Co
 	confirmedFlag := status == disperser_rpc.BlobStatus_CONFIRMED || status == disperser_rpc.BlobStatus_FINALIZED
 
 	if confirmedFlag {
-		p := blobStatusReply.GetInfo().GetBlobVerificationProof()
-		proof, err := GetVerificationProof(p)
+		info := blobStatusReply.GetInfo()
+		blobData, err := GetBlobData(info)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
 		}
-		msg, err := TryToDataAvailabilityMessage(proof)
+		msg, err := TryToDataAvailabilityMessage(blobData)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
