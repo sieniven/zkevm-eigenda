@@ -7,3 +7,6 @@
 [submodule "contracts/eigenda/lib/openzeppelin-contracts"]
 	path = contracts/eigenda/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "contracts/eigenda/lib/eigenda"]
+	path = contracts/eigenda/lib/eigenda
+	url = git@github.com:Layr-Labs/eigenda.git
