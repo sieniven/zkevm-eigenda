@@ -2,6 +2,7 @@ package dataavailability
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 
 	// send mock sequence with provider
 	msg, err := provider.PostSequence(context.Background(), mockBatches)
+	fmt.Println("DA msg: ", msg)
 	assert.NoError(t, err)
 	blobData, err := TryFromDataAvailabilityMessage(msg)
 	assert.NoError(t, err)
@@ -52,6 +54,7 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 	assert.NotEmpty(t, blobData.BlobVerificationProof.InclusionProof)
 	assert.NotNil(t, blobData.BlobVerificationProof.QuorumIndices)
 	assert.NotEmpty(t, blobData.BlobVerificationProof.QuorumIndices)
+	fmt.Println("Decoding DA msg successful")
 
 	// Retrieve sequence with provider
 	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, msg)
@@ -91,6 +94,7 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 
 	// send mock sequence with provider
 	msg, err := provider.PostSequence(context.Background(), mockBatches)
+	fmt.Println("DA msg: ", msg)
 	assert.NoError(t, err)
 	blobData, err := TryFromDataAvailabilityMessage(msg)
 	assert.NoError(t, err)
@@ -110,6 +114,7 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 	assert.NotEmpty(t, blobData.BlobVerificationProof.InclusionProof)
 	assert.NotNil(t, blobData.BlobVerificationProof.QuorumIndices)
 	assert.NotEmpty(t, blobData.BlobVerificationProof.QuorumIndices)
+	fmt.Println("Decoding DA msg successful")
 
 	// Retrieve sequence with provider
 	batchesData, err := provider.GetSequence(context.Background(), []common.Hash{}, msg)

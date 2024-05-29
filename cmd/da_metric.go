@@ -85,7 +85,10 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 					panic(err)
 				}
 
-				batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
+				batchHeaderHash, err := blobData.BlobVerificationProof.GetBatchHeaderHash()
+				if err != nil {
+					panic(err)
+				}
 				reply, err := client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 				if err != nil {
 					panic(err)

@@ -2,9 +2,13 @@ package dataavailability
 
 import (
 	"fmt"
+	"math/big"
+	"strings"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type BlobData struct {
@@ -13,9 +17,9 @@ type BlobData struct {
 }
 
 type BlobHeader struct {
-	Commitment       G1Commitment
+	Commitment       Commitment
 	DataLength       uint32
-	BlobQuorumParams []QuorumBlobParam
+	QuorumBlobParams []QuorumBlobParam
 }
 
 type BlobVerificationProof struct {
@@ -33,9 +37,9 @@ type QuorumBlobParam struct {
 	ChunkLength                     uint32
 }
 
-type G1Commitment struct {
-	X []byte
-	Y []byte
+type Commitment struct {
+	X *big.Int
+	Y *big.Int
 }
 
 type BatchMetadata struct {
@@ -55,6 +59,11 @@ type BatchHeader struct {
 	// that has signed in the corresponding quorum in `quorumNumbers`
 	SignedStakeForQuorums []byte
 	ReferenceBlockNumber  uint32
+}
+
+type ReducedBatchHeader struct {
+	BlobHeadersRoot      common.Hash
+	ReferenceBlockNumber uint32
 }
 
 func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
@@ -77,10 +86,14 @@ func GetBlobHeader(header *disperser_rpc.BlobHeader) BlobHeader {
 		}
 		quorums = append(quorums, q)
 	}
+
 	return BlobHeader{
-		Commitment:       G1Commitment{X: header.GetCommitment().GetX(), Y: header.GetCommitment().GetY()},
+		Commitment: Commitment{
+			X: new(big.Int).SetBytes(header.GetCommitment().GetX()),
+			Y: new(big.Int).SetBytes(header.GetCommitment().GetY()),
+		},
 		DataLength:       header.GetDataLength(),
-		BlobQuorumParams: quorums,
+		QuorumBlobParams: quorums,
 	}
 }
 
@@ -112,16 +125,63 @@ func GetBlobVerificationProof(proof *disperser_rpc.BlobVerificationProof) (BlobV
 }
 
 // Get abi-encoded Keccak-256 hash of the reduced batch header
-func (proof BlobVerificationProof) GetBatchHeaderHash() []byte {
-	return nil
+func (proof BlobVerificationProof) GetBatchHeaderHash() ([]byte, error) {
+	headerABI, err := abi.JSON(strings.NewReader(reducedBlockHeaderAbiJSON))
+	if err != nil {
+		fmt.Println("failed to parse ABI: ", err)
+		return nil, err
+	}
+
+	header := ReducedBatchHeader{
+		BlobHeadersRoot:      proof.BatchMetadata.BatchHeader.BlobHeadersRoot,
+		ReferenceBlockNumber: proof.BatchMetadata.BatchHeader.ReferenceBlockNumber,
+	}
+
+	data, err := headerABI.Pack(
+		"",
+		header,
+	)
+	if err != nil {
+		fmt.Println("failed to pack reduced block header: ", err)
+		return nil, err
+	}
+	return crypto.Keccak256(data), nil
 }
 
 // Fallible conversion method if blob info is empty.
-func TryToDataAvailabilityMessage(data BlobData) ([]byte, error) {
-	return nil, nil
+func TryToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
+	blobABI, err := abi.JSON(strings.NewReader(blobInfoAbiJSON))
+	if err != nil {
+		fmt.Println("failed to parse ABI: ", err)
+		return nil, err
+	}
+
+	data, err := blobABI.Pack("", blobData)
+	if err != nil {
+		fmt.Println("failed to pack blob data: ", err)
+		return nil, err
+	}
+
+	return data, nil
 }
 
 // Fallible conversion method if data availability message encoding is incorrect.
 func TryFromDataAvailabilityMessage(msg []byte) (BlobData, error) {
-	return BlobData{}, nil
+	blobABI, err := abi.JSON(strings.NewReader(blobInfoAbiJSON))
+	if err != nil {
+		fmt.Println("failed to parse ABI: ", err)
+		return BlobData{}, err
+	}
+
+	var blobData BlobData
+	unpacked, err := blobABI.Constructor.Inputs.Unpack(msg)
+	if err != nil {
+		return BlobData{}, err
+	}
+	err = blobABI.Constructor.Inputs.Copy(&blobData, unpacked)
+	if err != nil {
+		return BlobData{}, err
+	}
+
+	return blobData, nil
 }
