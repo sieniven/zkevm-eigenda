@@ -91,12 +91,12 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		fmt.Println(err)
 		return nil, err
 	}
-	return ToDataAvailabilityMessage(data), nil
+	return EncodeToDataAvailabilityMessage(data), nil
 }
 
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	// Try decoding data availability message
-	blobData := FromDataAvailabilityMessage(dataAvailabilityMessage)
+	blobData := DecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
 
 	// Get blob from EigenDA layer
 	var batchesData [][]byte
@@ -139,7 +139,7 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		fmt.Println("failed to get blob info from DA storage")
 		return nil, err
 	}
-	blobData := FromDataAvailabilityMessage(msg)
+	blobData := DecodeFromDataAvailabilityMessage(msg)
 	batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
 	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
@@ -180,5 +180,5 @@ func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.
 		return nil, err
 	}
 
-	return ToDataAvailabilityMessage(blobData), nil
+	return EncodeToDataAvailabilityMessage(blobData), nil
 }

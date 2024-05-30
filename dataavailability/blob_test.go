@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,8 +14,8 @@ func TestEncodeBlobData(t *testing.T) {
 	data := BlobData{
 		BlobHeader: BlobHeader{
 			Commitment: Commitment{
-				X: big.NewInt(12345),
-				Y: big.NewInt(67890),
+				X: common.BytesToHash(big.NewInt(12345).Bytes()),
+				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
 			},
 			DataLength: 100,
 			QuorumBlobParams: []QuorumBlobParam{
@@ -43,7 +44,7 @@ func TestEncodeBlobData(t *testing.T) {
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
 	}
-	msg := ToDataAvailabilityMessage(data)
+	msg := EncodeToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 }
@@ -52,8 +53,8 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	data := BlobData{
 		BlobHeader: BlobHeader{
 			Commitment: Commitment{
-				X: big.NewInt(12345),
-				Y: big.NewInt(67890),
+				X: common.BytesToHash(big.NewInt(12345).Bytes()),
+				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
 			},
 			DataLength: 100,
 			QuorumBlobParams: []QuorumBlobParam{
@@ -82,14 +83,14 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
 	}
-	msg := ToDataAvailabilityMessage(data)
+	msg := EncodeToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 
 	// Check blob header
-	decoded_data := FromDataAvailabilityMessage(msg)
-	assert.Equal(t, *data.BlobHeader.Commitment.X, *decoded_data.BlobHeader.Commitment.X)
-	assert.Equal(t, *data.BlobHeader.Commitment.Y, *decoded_data.BlobHeader.Commitment.Y)
+	decoded_data := DecodeFromDataAvailabilityMessage(msg)
+	assert.Equal(t, data.BlobHeader.Commitment.X, decoded_data.BlobHeader.Commitment.X)
+	assert.Equal(t, data.BlobHeader.Commitment.Y, decoded_data.BlobHeader.Commitment.Y)
 	assert.Equal(t, data.BlobHeader.DataLength, decoded_data.BlobHeader.DataLength)
 	for idx, q := range data.BlobHeader.QuorumBlobParams {
 		assert.Equal(t, q.QuorumNumber, decoded_data.BlobHeader.QuorumBlobParams[idx].QuorumNumber)
@@ -116,8 +117,8 @@ func TestBlockHeaderHash(t *testing.T) {
 	data := BlobData{
 		BlobHeader: BlobHeader{
 			Commitment: Commitment{
-				X: big.NewInt(12345),
-				Y: big.NewInt(67890),
+				X: common.BytesToHash(big.NewInt(12345).Bytes()),
+				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
 			},
 			DataLength: 100,
 			QuorumBlobParams: []QuorumBlobParam{

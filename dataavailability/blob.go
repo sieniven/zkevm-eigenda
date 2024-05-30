@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,8 +37,8 @@ type QuorumBlobParam struct {
 }
 
 type Commitment struct {
-	X *big.Int
-	Y *big.Int
+	X common.Hash
+	Y common.Hash
 }
 
 type BatchMetadata struct {
@@ -65,7 +64,7 @@ func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
 	header := GetBlobHeader(info.GetBlobHeader())
 	proof, err := GetBlobVerificationProof(info.GetBlobVerificationProof())
 	if err != nil {
-		return BlobData{}, nil
+		return BlobData{}, err
 	}
 	return BlobData{BlobHeader: header, BlobVerificationProof: proof}, nil
 }
@@ -84,8 +83,8 @@ func GetBlobHeader(header *disperser_rpc.BlobHeader) BlobHeader {
 
 	return BlobHeader{
 		Commitment: Commitment{
-			X: new(big.Int).SetBytes(header.GetCommitment().GetX()),
-			Y: new(big.Int).SetBytes(header.GetCommitment().GetY()),
+			X: common.BytesToHash(header.GetCommitment().GetX()),
+			Y: common.BytesToHash(header.GetCommitment().GetY()),
 		},
 		DataLength:       header.GetDataLength(),
 		QuorumBlobParams: quorums,
@@ -128,7 +127,7 @@ func (proof BlobVerificationProof) GetBatchHeaderHash() []byte {
 	return crypto.Keccak256(data)
 }
 
-func FromDataAvailabilityMessage(msg []byte) BlobData {
+func DecodeFromDataAvailabilityMessage(msg []byte) BlobData {
 	blobData := BlobData{}
 	buf := bytes.NewReader(msg)
 
@@ -138,7 +137,7 @@ func FromDataAvailabilityMessage(msg []byte) BlobData {
 	return blobData
 }
 
-func ToDataAvailabilityMessage(blobData BlobData) []byte {
+func EncodeToDataAvailabilityMessage(blobData BlobData) []byte {
 	var buf bytes.Buffer
 	EncodeBlobHeader(&buf, blobData.BlobHeader)
 	EncodeBlobVerificationProof(&buf, blobData.BlobVerificationProof)
@@ -186,8 +185,8 @@ func EncodeBytes(buf *bytes.Buffer, data []byte) {
 
 func DecodeBlobHeader(buf *bytes.Reader) BlobHeader {
 	header := BlobHeader{}
-	header.Commitment.X = new(big.Int).SetBytes(ReadBytes(buf, 32))
-	header.Commitment.Y = new(big.Int).SetBytes(ReadBytes(buf, 32))
+	header.Commitment.X = common.BytesToHash(ReadBytes(buf, 32))
+	header.Commitment.Y = common.BytesToHash(ReadBytes(buf, 32))
 
 	binary.Read(buf, binary.BigEndian, &header.DataLength)
 
