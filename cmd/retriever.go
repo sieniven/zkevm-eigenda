@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/sieniven/zkevm-eigenda/config"
@@ -19,7 +20,10 @@ func retrieve(cliCtx *cli.Context) error {
 
 	// Get EigenDA blob information
 	requestId := cliCtx.String(config.FlagRequestID)
-	id := []byte(requestId)
+	id, err := base64.StdEncoding.DecodeString(requestId)
+	if err != nil {
+		panic(err)
+	}
 	batchesData, err := da.GetBatchL2DataFromRequestId(cliCtx.Context, id)
 	if err != nil {
 		fmt.Println("failed to get batch data from req id: ", err)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -33,7 +34,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
-	id := string(idBytes)
+	id := base64.StdEncoding.EncodeToString(idBytes)
 	fmt.Println("id: ", id)
 
 	// Monitor blob status

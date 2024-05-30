@@ -2,6 +2,7 @@ package dataavailability
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sync"
@@ -55,7 +56,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		fmt.Println("failed to send blob to EigenDA disperser: ", err)
 		return nil, err
 	}
-	fmt.Println("sent blob to EigenDA disperser, request id: ", string(idBytes))
+	fmt.Println("sent blob to EigenDA disperser, request id: ", base64.StdEncoding.EncodeToString(idBytes))
 
 	var blobStatusReply *disperser_rpc.BlobStatusReply
 	for {
@@ -91,12 +92,16 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		fmt.Println(err)
 		return nil, err
 	}
-	return EncodeToDataAvailabilityMessage(data), nil
+	return TryEncodeToDataAvailabilityMessage(data)
 }
 
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	// Try decoding data availability message
-	blobData := DecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
+	blobData, err := TryDecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 
 	// Get blob from EigenDA layer
 	var batchesData [][]byte
@@ -138,7 +143,12 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		fmt.Println("failed to get blob info from DA storage")
 		return nil, err
 	}
-	blobData := DecodeFromDataAvailabilityMessage(msg)
+	blobData, err := TryDecodeFromDataAvailabilityMessage(msg)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
 	reply, err := d.client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
@@ -178,5 +188,5 @@ func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.
 		return nil, err
 	}
 
-	return EncodeToDataAvailabilityMessage(blobData), nil
+	return TryEncodeToDataAvailabilityMessage(blobData)
 }

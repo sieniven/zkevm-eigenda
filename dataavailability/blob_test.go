@@ -1,6 +1,8 @@
 package dataavailability
 
 import (
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -43,7 +45,8 @@ func TestEncodeBlobData(t *testing.T) {
 		},
 		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
-	msg := EncodeToDataAvailabilityMessage(data)
+	msg, err := TryEncodeToDataAvailabilityMessage(data)
+	assert.NoError(t, err)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 }
@@ -83,12 +86,16 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 		},
 		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
-	msg := EncodeToDataAvailabilityMessage(data)
+	msg, err := TryEncodeToDataAvailabilityMessage(data)
+	assert.NoError(t, err)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
 
+	fmt.Println(hex.EncodeToString(msg))
+
 	// Check blob header
-	decoded_data := DecodeFromDataAvailabilityMessage(msg)
+	decoded_data, err := TryDecodeFromDataAvailabilityMessage(msg)
+	assert.NoError(t, err)
 	assert.Equal(t, data.BlobHeader.Commitment.X, decoded_data.BlobHeader.Commitment.X)
 	assert.Equal(t, data.BlobHeader.Commitment.Y, decoded_data.BlobHeader.Commitment.Y)
 	assert.Equal(t, data.BlobHeader.DataLength, decoded_data.BlobHeader.DataLength)

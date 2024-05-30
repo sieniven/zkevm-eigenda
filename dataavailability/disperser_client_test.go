@@ -2,6 +2,7 @@ package dataavailability
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -33,7 +34,7 @@ func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
 	assert.NotNil(t, blobStatus)
 	assert.Equal(t, *blobStatus, disperser.Processing)
 	assert.True(t, len(idBytes) > 0)
-	id := string(idBytes)
+	id := base64.StdEncoding.EncodeToString(idBytes)
 	fmt.Println("id: ", id)
 }
 
@@ -64,6 +65,6 @@ func TestDisperserClientDisperseBlobWithRandomData(t *testing.T) {
 	assert.NotNil(t, blobStatus)
 	assert.Equal(t, *blobStatus, disperser.Processing)
 	assert.True(t, len(idBytes) > 0)
-	id := string(idBytes)
+	id := base64.StdEncoding.EncodeToString(idBytes)
 	fmt.Println("id: ", id)
 }
