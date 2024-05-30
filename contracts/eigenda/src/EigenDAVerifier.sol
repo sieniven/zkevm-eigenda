@@ -92,7 +92,7 @@ contract EigenDAVerifier is
     }
 
     /////////////////////////////////////////////
-    // Decode data availability message functions
+    // Data availability message decode functions
     /////////////////////////////////////////////
 
     /**
