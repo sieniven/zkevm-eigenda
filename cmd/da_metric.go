@@ -75,6 +75,9 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			if status == disperser_rpc.BlobStatus_CONFIRMED {
 				// Test retrieve blob pipeline
 				blobStatusReply, err := client.GetBlobStatus(ctx, idBytes)
+				if err != nil {
+					panic(err)
+				}
 				if blobStatusReply == nil {
 					panic(fmt.Errorf("empty blob status reply returned"))
 				}
@@ -85,8 +88,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 					panic(err)
 				}
 
-				batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
-				reply, err := client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
+				reply, err := client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 				if err != nil {
 					panic(err)
 				}

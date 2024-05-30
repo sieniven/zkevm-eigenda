@@ -1,12 +1,10 @@
 package dataavailability
 
 import (
-	"encoding/binary"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,6 +41,7 @@ func TestEncodeBlobData(t *testing.T) {
 			InclusionProof: []byte{0x01, 0x02, 0x03},
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
+		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
 	msg := EncodeToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
@@ -82,6 +81,7 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 			InclusionProof: []byte{0x01, 0x02, 0x03},
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
+		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
 	msg := EncodeToDataAvailabilityMessage(data)
 	assert.NotNil(t, msg)
@@ -111,51 +111,7 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	assert.Equal(t, data.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber, decoded_data.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber)
 	assert.Equal(t, data.BlobVerificationProof.InclusionProof, decoded_data.BlobVerificationProof.InclusionProof)
 	assert.Equal(t, data.BlobVerificationProof.QuorumIndices, decoded_data.BlobVerificationProof.QuorumIndices)
-}
 
-func TestBlockHeaderHash(t *testing.T) {
-	data := BlobData{
-		BlobHeader: BlobHeader{
-			Commitment: Commitment{
-				X: common.BytesToHash(big.NewInt(12345).Bytes()),
-				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
-			},
-			DataLength: 100,
-			QuorumBlobParams: []QuorumBlobParam{
-				{
-					QuorumNumber:                    1,
-					AdversaryThresholdPercentage:    50,
-					ConfirmationThresholdPercentage: 75,
-					ChunkLength:                     1024,
-				},
-			},
-		},
-		BlobVerificationProof: BlobVerificationProof{
-			BatchId:   1,
-			BlobIndex: 2,
-			BatchMetadata: BatchMetadata{
-				BatchHeader: BatchHeader{
-					BlobHeadersRoot:       [32]byte{},
-					QuorumNumbers:         []byte{1, 2, 3},
-					SignedStakeForQuorums: []byte{50, 60, 70},
-					ReferenceBlockNumber:  12345,
-				},
-				SignatoryRecordHash:     [32]byte{},
-				ConfirmationBlockNumber: 54321,
-			},
-			InclusionProof: []byte{0x01, 0x02, 0x03},
-			QuorumIndices:  []byte{0x04, 0x05, 0x06},
-		},
-	}
-	hash := data.BlobVerificationProof.GetBatchHeaderHash()
-	assert.NotNil(t, hash)
-	assert.NotEmpty(t, hash)
-
-	// Manually add the bytes and see if they match
-	b := data.BlobVerificationProof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes()
-	bn := make([]byte, 4)
-	binary.BigEndian.PutUint32(bn, data.BlobVerificationProof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
-	b = append(b, bn...)
-	calc_hash := crypto.Keccak256(b)
-	assert.Equal(t, calc_hash, hash)
+	// Check blob batch header hash
+	assert.Equal(t, data.BatchHeaderHash, decoded_data.BatchHeaderHash)
 }

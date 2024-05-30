@@ -7,12 +7,12 @@ import (
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type BlobData struct {
 	BlobHeader            BlobHeader
 	BlobVerificationProof BlobVerificationProof
+	BatchHeaderHash       []byte
 }
 
 type BlobHeader struct {
@@ -66,7 +66,11 @@ func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
 	if err != nil {
 		return BlobData{}, err
 	}
-	return BlobData{BlobHeader: header, BlobVerificationProof: proof}, nil
+	return BlobData{
+		BlobHeader:            header,
+		BlobVerificationProof: proof,
+		BatchHeaderHash:       info.GetBlobVerificationProof().GetBatchMetadata().GetBatchHeaderHash(),
+	}, nil
 }
 
 func GetBlobHeader(header *disperser_rpc.BlobHeader) BlobHeader {
@@ -118,13 +122,13 @@ func GetBlobVerificationProof(proof *disperser_rpc.BlobVerificationProof) (BlobV
 	}, nil
 }
 
-// Get Keccak-256 hash of the reduced batch header
-func (proof BlobVerificationProof) GetBatchHeaderHash() []byte {
+func EncodeToDataAvailabilityMessage(blobData BlobData) []byte {
 	var buf bytes.Buffer
-	buf.Write(proof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
-	binary.Write(&buf, binary.BigEndian, proof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
-	data := buf.Bytes()
-	return crypto.Keccak256(data)
+	EncodeBlobHeader(&buf, blobData.BlobHeader)
+	EncodeBlobVerificationProof(&buf, blobData.BlobVerificationProof)
+	EncodeBatchHeaderHash(&buf, blobData.BatchHeaderHash)
+
+	return buf.Bytes()
 }
 
 func DecodeFromDataAvailabilityMessage(msg []byte) BlobData {
@@ -133,18 +137,12 @@ func DecodeFromDataAvailabilityMessage(msg []byte) BlobData {
 
 	blobData.BlobHeader = DecodeBlobHeader(buf)
 	blobData.BlobVerificationProof = DecodeBlobVerificationProof(buf)
+	blobData.BatchHeaderHash = DecodeBatchHeaderHash(buf)
 
 	return blobData
 }
 
-func EncodeToDataAvailabilityMessage(blobData BlobData) []byte {
-	var buf bytes.Buffer
-	EncodeBlobHeader(&buf, blobData.BlobHeader)
-	EncodeBlobVerificationProof(&buf, blobData.BlobVerificationProof)
-
-	return buf.Bytes()
-}
-
+// ------------------ Encoding scheme ------------------
 func EncodeBlobHeader(buf *bytes.Buffer, header BlobHeader) {
 	buf.Write(header.Commitment.X.Bytes())
 	buf.Write(header.Commitment.Y.Bytes())
@@ -168,21 +166,24 @@ func EncodeBlobVerificationProof(buf *bytes.Buffer, proof BlobVerificationProof)
 	EncodeBytes(buf, proof.QuorumIndices)
 }
 
-func EncodeBatchMetadata(buf *bytes.Buffer, data BatchMetadata) {
-	buf.Write(data.BatchHeader.BlobHeadersRoot.Bytes())
-	EncodeBytes(buf, data.BatchHeader.QuorumNumbers)
-	EncodeBytes(buf, data.BatchHeader.SignedStakeForQuorums)
-	binary.Write(buf, binary.BigEndian, data.BatchHeader.ReferenceBlockNumber)
+func EncodeBatchHeaderHash(buf *bytes.Buffer, hash []byte) {
+	EncodeBytes(buf, hash)
+}
 
+func EncodeBatchHeader(buf *bytes.Buffer, header BatchHeader) {
+	buf.Write(header.BlobHeadersRoot.Bytes())
+	EncodeBytes(buf, header.QuorumNumbers)
+	EncodeBytes(buf, header.SignedStakeForQuorums)
+	binary.Write(buf, binary.BigEndian, header.ReferenceBlockNumber)
+}
+
+func EncodeBatchMetadata(buf *bytes.Buffer, data BatchMetadata) {
+	EncodeBatchHeader(buf, data.BatchHeader)
 	buf.Write(data.SignatoryRecordHash.Bytes())
 	binary.Write(buf, binary.BigEndian, data.ConfirmationBlockNumber)
 }
 
-func EncodeBytes(buf *bytes.Buffer, data []byte) {
-	binary.Write(buf, binary.BigEndian, uint32(len(data)))
-	buf.Write(data)
-}
-
+// ------------------ Decoding scheme ------------------
 func DecodeBlobHeader(buf *bytes.Reader) BlobHeader {
 	header := BlobHeader{}
 	header.Commitment.X = common.BytesToHash(ReadBytes(buf, 32))
@@ -217,16 +218,33 @@ func DecodeBlobVerificationProof(buf *bytes.Reader) BlobVerificationProof {
 	return proof
 }
 
+func DecodeBatchHeaderHash(buf *bytes.Reader) []byte {
+	return DecodeBytes(buf)
+}
+
+func DecodeBatchHeader(buf *bytes.Reader) BatchHeader {
+	header := BatchHeader{}
+	header.BlobHeadersRoot = common.BytesToHash(ReadBytes(buf, 32))
+	header.QuorumNumbers = DecodeBytes(buf)
+	header.SignedStakeForQuorums = DecodeBytes(buf)
+
+	return header
+}
+
 func DecodeBatchMetadata(buf *bytes.Reader) BatchMetadata {
 	data := BatchMetadata{}
-	data.BatchHeader.BlobHeadersRoot = common.BytesToHash(ReadBytes(buf, 32))
-	data.BatchHeader.QuorumNumbers = DecodeBytes(buf)
-	data.BatchHeader.SignedStakeForQuorums = DecodeBytes(buf)
+	data.BatchHeader = DecodeBatchHeader(buf)
 	binary.Read(buf, binary.BigEndian, &data.BatchHeader.ReferenceBlockNumber)
 	data.SignatoryRecordHash = common.BytesToHash(ReadBytes(buf, 32))
 	binary.Read(buf, binary.BigEndian, &data.ConfirmationBlockNumber)
 
 	return data
+}
+
+// ------------------ Utility functions ------------------
+func EncodeBytes(buf *bytes.Buffer, data []byte) {
+	binary.Write(buf, binary.BigEndian, uint32(len(data)))
+	buf.Write(data)
 }
 
 func DecodeBytes(buf *bytes.Reader) []byte {
@@ -239,4 +257,70 @@ func ReadBytes(buf *bytes.Reader, length int) []byte {
 	bytes := make([]byte, length)
 	buf.Read(bytes)
 	return bytes
+}
+
+func (blobData BlobData) DebugLogBlobData() {
+	fmt.Println("Logging blob data...")
+
+	fmt.Println("--- Blob header ---")
+	fmt.Println("Blob header commitment x: ", blobData.BlobHeader.Commitment.X.Bytes())
+	fmt.Println("Blob header commitment y: ", blobData.BlobHeader.Commitment.Y.Bytes())
+	fmt.Println("Blob header data length: ", blobData.BlobHeader.DataLength)
+	for idx, q := range blobData.BlobHeader.QuorumBlobParams {
+		fmt.Printf("Blob header quorum %v quorum number: %v\n", idx, q.QuorumNumber)
+		fmt.Printf("Blob header quorum %v quorum adversary threshold percentage: %v\n", idx, q.AdversaryThresholdPercentage)
+		fmt.Printf("Blob header quorum %v quorum confirmation threshold percentage: %v\n", idx, q.ConfirmationThresholdPercentage)
+		fmt.Printf("Blob header quorum %v quorum chunk length: %v\n", idx, q.ChunkLength)
+	}
+
+	fmt.Println("--- Blob verification proof ---")
+	fmt.Println("Blob verification proof batch id: ", blobData.BlobVerificationProof.BatchId)
+	fmt.Println("Blob verification proof blob idx: ", blobData.BlobVerificationProof.BlobIndex)
+
+	fmt.Println("Blob verification proof batch metadata:")
+	fmt.Println("Blob verification proof batch metadata batch header batch headers root: ", blobData.BlobVerificationProof.BatchMetadata.BatchHeader.BlobHeadersRoot.Bytes())
+	fmt.Println("Blob verification proof batch metadata batch header quorum numbers: ", blobData.BlobVerificationProof.BatchMetadata.BatchHeader.QuorumNumbers)
+	fmt.Println("Blob verification proof batch metadata batch header signed stake for quorums: ", blobData.BlobVerificationProof.BatchMetadata.BatchHeader.SignedStakeForQuorums)
+	fmt.Println("Blob verification proof batch metadata batch header reference block number: ", blobData.BlobVerificationProof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
+	fmt.Println("Blob verification proof batch metadata signature record hash: ", blobData.BlobVerificationProof.BatchMetadata.SignatoryRecordHash.Bytes())
+	fmt.Println("Blob verification proof batch metadata confirmation block number: ", blobData.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber)
+
+	fmt.Println("Blob verification proof inclusion proof: ", blobData.BlobVerificationProof.InclusionProof)
+	fmt.Println("Blob verification proof quorum indices: ", blobData.BlobVerificationProof.QuorumIndices)
+
+	fmt.Println("--- Batch header hash ---")
+	fmt.Println("Blob data batch header hash: ", blobData.BatchHeaderHash)
+}
+
+func DebugLogBlobInfoResponse(info *disperser_rpc.BlobInfo) {
+	fmt.Println("Logging blob data...")
+
+	fmt.Println("--- Blob header ---")
+	fmt.Println("Blob header commitment x: ", info.BlobHeader.Commitment.X)
+	fmt.Println("Blob header commitment y: ", info.BlobHeader.Commitment.Y)
+	fmt.Println("Blob header data length: ", info.BlobHeader.DataLength)
+	for idx, q := range info.BlobHeader.BlobQuorumParams {
+		fmt.Printf("Blob header quorum %v quorum number: %v\n", idx, q.QuorumNumber)
+		fmt.Printf("Blob header quorum %v quorum adversary threshold percentage: %v\n", idx, q.AdversaryThresholdPercentage)
+		fmt.Printf("Blob header quorum %v quorum confirmation threshold percentage: %v\n", idx, q.ConfirmationThresholdPercentage)
+		fmt.Printf("Blob header quorum %v quorum chunk length: %v\n", idx, q.ChunkLength)
+	}
+
+	fmt.Println("--- Blob verification proof ---")
+	fmt.Println("Blob verification proof batch id: ", info.BlobVerificationProof.BatchId)
+	fmt.Println("Blob verification proof blob idx: ", info.BlobVerificationProof.BlobIndex)
+
+	fmt.Println("Blob verification proof batch metadata:")
+	fmt.Println("Blob verification proof batch metadata batch header batch headers root: ", info.BlobVerificationProof.BatchMetadata.BatchHeader.BatchRoot)
+	fmt.Println("Blob verification proof batch metadata batch header quorum numbers: ", info.BlobVerificationProof.BatchMetadata.BatchHeader.QuorumNumbers)
+	fmt.Println("Blob verification proof batch metadata batch header signed stake for quorums: ", info.BlobVerificationProof.BatchMetadata.BatchHeader.QuorumSignedPercentages)
+	fmt.Println("Blob verification proof batch metadata batch header reference block number: ", info.BlobVerificationProof.BatchMetadata.BatchHeader.ReferenceBlockNumber)
+	fmt.Println("Blob verification proof batch metadata signature record hash: ", info.BlobVerificationProof.BatchMetadata.SignatoryRecordHash)
+	fmt.Println("Blob verification proof batch metadata confirmation block number: ", info.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber)
+
+	fmt.Println("Blob verification proof inclusion proof: ", info.BlobVerificationProof.InclusionProof)
+	fmt.Println("Blob verification proof quorum indices: ", info.BlobVerificationProof.QuorumIndexes)
+
+	fmt.Println("--- Batch header hash ---")
+	fmt.Println("Blob verification proof batch metadata batch header hash: ", info.BlobVerificationProof.BatchMetadata.BatchHeaderHash)
 }

@@ -107,8 +107,7 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 		}
 		batchesData = append(batchesData, batchData)
 	}
-	batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
-	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
+	reply, err := d.client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
@@ -140,8 +139,7 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		return nil, err
 	}
 	blobData := DecodeFromDataAvailabilityMessage(msg)
-	batchHeaderHash := blobData.BlobVerificationProof.GetBatchHeaderHash()
-	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
+	reply, err := d.client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
