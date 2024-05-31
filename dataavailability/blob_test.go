@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,8 +13,8 @@ func TestEncodeBlobData(t *testing.T) {
 	data := BlobData{
 		BlobHeader: BlobHeader{
 			Commitment: Commitment{
-				X: common.BytesToHash(big.NewInt(12345).Bytes()),
-				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
+				X: big.NewInt(12345),
+				Y: big.NewInt(67890),
 			},
 			DataLength: 100,
 			QuorumBlobParams: []QuorumBlobParam{
@@ -55,8 +54,8 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	data := BlobData{
 		BlobHeader: BlobHeader{
 			Commitment: Commitment{
-				X: common.BytesToHash(big.NewInt(12345).Bytes()),
-				Y: common.BytesToHash(big.NewInt(67890).Bytes()),
+				X: big.NewInt(12345),
+				Y: big.NewInt(67890),
 			},
 			DataLength: 100,
 			QuorumBlobParams: []QuorumBlobParam{
@@ -96,8 +95,8 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	// Check blob header
 	decoded_data, err := TryDecodeFromDataAvailabilityMessage(msg)
 	assert.NoError(t, err)
-	assert.Equal(t, data.BlobHeader.Commitment.X, decoded_data.BlobHeader.Commitment.X)
-	assert.Equal(t, data.BlobHeader.Commitment.Y, decoded_data.BlobHeader.Commitment.Y)
+	assert.Equal(t, *data.BlobHeader.Commitment.X, *decoded_data.BlobHeader.Commitment.X)
+	assert.Equal(t, *data.BlobHeader.Commitment.Y, *decoded_data.BlobHeader.Commitment.Y)
 	assert.Equal(t, data.BlobHeader.DataLength, decoded_data.BlobHeader.DataLength)
 	for idx, q := range data.BlobHeader.QuorumBlobParams {
 		assert.Equal(t, q.QuorumNumber, decoded_data.BlobHeader.QuorumBlobParams[idx].QuorumNumber)

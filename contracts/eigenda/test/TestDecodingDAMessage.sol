@@ -43,7 +43,8 @@ contract TestDecodeDAMessage is Test {
                 ),
                 hex"010203",
                 hex"040506"
-            )
+            ),
+            hex"010203"
         );
         EigenDAVerifier.BlobData memory decodedData = verifierContract.decodeBlobData(testMessage);
         assertEq(data.blobHeader.commitment.X, decodedData.blobHeader.commitment.X);

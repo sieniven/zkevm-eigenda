@@ -2,62 +2,67 @@ package dataavailability
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"math/big"
+	"reflect"
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 )
 
+var DecodeErr = errors.New("not found")
+
 type BlobData struct {
-	BlobHeader            BlobHeader
-	BlobVerificationProof BlobVerificationProof
-	BatchHeaderHash       []byte
+	BlobHeader            BlobHeader            `abi:"blobHeader"`
+	BlobVerificationProof BlobVerificationProof `abi:"blobVerificationProof"`
+	BatchHeaderHash       []byte                `abi:"batchHeaderHash"`
 }
 
 type BlobHeader struct {
-	Commitment       Commitment
-	DataLength       uint32
-	QuorumBlobParams []QuorumBlobParam
+	Commitment       Commitment        `abi:"commitment"`
+	DataLength       uint32            `abi:"dataLength"`
+	QuorumBlobParams []QuorumBlobParam `abi:"quorumBlobParams"`
 }
 
 type BlobVerificationProof struct {
-	BatchId        uint32
-	BlobIndex      uint32
-	BatchMetadata  BatchMetadata
-	InclusionProof []byte
-	QuorumIndices  []byte
-}
-
-type QuorumBlobParam struct {
-	QuorumNumber                    uint8
-	AdversaryThresholdPercentage    uint8
-	ConfirmationThresholdPercentage uint8
-	ChunkLength                     uint32
+	BatchId        uint32        `abi:"batchId"`
+	BlobIndex      uint32        `abi:"blobIndex"`
+	BatchMetadata  BatchMetadata `abi:"batchMetadata"`
+	InclusionProof []byte        `abi:"inclusionProof"`
+	QuorumIndices  []byte        `abi:"quorumIndices"`
 }
 
 type Commitment struct {
-	X common.Hash
-	Y common.Hash
+	X *big.Int `abi:"X"`
+	Y *big.Int `abi:"Y"`
+}
+
+type QuorumBlobParam struct {
+	QuorumNumber                    uint8  `abi:"quorumNumber"`
+	AdversaryThresholdPercentage    uint8  `abi:"adversaryThresholdPercentage"`
+	ConfirmationThresholdPercentage uint8  `abi:"confirmationThresholdPercentage"`
+	ChunkLength                     uint32 `abi:"chunkLength"`
 }
 
 type BatchMetadata struct {
 	// The header of the data store
-	BatchHeader BatchHeader
+	BatchHeader BatchHeader `abi:"batchHeader"`
 	// The hash of the signatory record
-	SignatoryRecordHash common.Hash
+	SignatoryRecordHash common.Hash `abi:"signatoryRecordHash"`
 	// The block number at which the batch was confirmed
-	ConfirmationBlockNumber uint32
+	ConfirmationBlockNumber uint32 `abi:"confirmationBlockNumber"`
 }
 
 type BatchHeader struct {
-	BlobHeadersRoot common.Hash
+	BlobHeadersRoot common.Hash `abi:"blobHeadersRoot"`
 	// Each byte is a different quorum number
-	QuorumNumbers []byte
+	QuorumNumbers []byte `abi:"quorumNumbers"`
 	// Every bytes is an amount less than 100 specifying the percentage of stake
 	// that has signed in the corresponding quorum in `quorumNumbers`
-	SignedStakeForQuorums []byte
-	ReferenceBlockNumber  uint32
+	SignedStakeForQuorums []byte `abi:"signedStakeForQuorums"`
+	ReferenceBlockNumber  uint32 `abi:"referenceBlockNumber"`
 }
 
 func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
@@ -87,8 +92,8 @@ func GetBlobHeader(header *disperser_rpc.BlobHeader) BlobHeader {
 
 	return BlobHeader{
 		Commitment: Commitment{
-			X: common.BytesToHash(header.GetCommitment().GetX()),
-			Y: common.BytesToHash(header.GetCommitment().GetY()),
+			X: new(big.Int).SetBytes(header.GetCommitment().GetX()),
+			Y: new(big.Int).SetBytes(header.GetCommitment().GetY()),
 		},
 		DataLength:       header.GetDataLength(),
 		QuorumBlobParams: quorums,
@@ -129,38 +134,194 @@ func TryEncodeToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
 	}
 
 	// Encode the data
-	encoded, err := parsedABI.Pack("decodeBlobData", blobData)
+	method, exist := parsedABI.Methods["BlobData"]
+	if !exist {
+		return nil, fmt.Errorf("abi error, BlobData method not found")
+	}
+
+	encoded, err := method.Inputs.Pack(blobData)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%+v\n", blobData)
 
 	return encoded, nil
 }
 
 func TryDecodeFromDataAvailabilityMessage(msg []byte) (BlobData, error) {
-	var blobData BlobData
-
 	// Parse the ABI
 	parsedABI, err := abi.JSON(bytes.NewReader([]byte(blobDataABI)))
 	if err != nil {
-		return blobData, err
+		return BlobData{}, err
 	}
 
 	// Decode the data
-	err = parsedABI.UnpackIntoInterface(&blobData, "decodeBlobData", msg)
+	method, exist := parsedABI.Methods["BlobData"]
+	if !exist {
+		return BlobData{}, fmt.Errorf("abi error, BlobData method not found")
+	}
+
+	unpackedMap := make(map[string]interface{})
+	err = method.Inputs.UnpackIntoMap(unpackedMap, msg)
 	if err != nil {
-		return blobData, err
+		return BlobData{}, err
+	}
+	unpacked, ok := unpackedMap["blobData"]
+	if !ok {
+		return BlobData{}, fmt.Errorf("abi error, failed to unpack to BlobData")
+	}
+
+	val := reflect.ValueOf(unpacked)
+	typ := reflect.TypeOf(unpacked)
+
+	blobData := BlobData{}
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		value := val.Field(i)
+
+		switch field.Name {
+		case "BlobHeader":
+			blobData.BlobHeader, err = convertBlobHeader(value)
+			if err != nil {
+				return BlobData{}, DecodeErr
+			}
+		case "BlobVerificationProof":
+			blobData.BlobVerificationProof, err = convertBlobVerificationProof(value)
+			if err != nil {
+				return BlobData{}, DecodeErr
+			}
+		case "BatchHeaderHash":
+			blobData.BatchHeaderHash = value.Interface().([]byte)
+		}
 	}
 
 	return blobData, nil
 }
 
+// -------- Helper fallible conversion methods --------
+func convertBlobHeader(val reflect.Value) (BlobHeader, error) {
+	blobHeader := BlobHeader{}
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		value := val.Field(i)
+
+		switch field.Name {
+		case "Commitment":
+			blobHeader.Commitment = Commitment{
+				X: value.FieldByName("X").Interface().(*big.Int),
+				Y: value.FieldByName("Y").Interface().(*big.Int),
+			}
+		case "DataLength":
+			blobHeader.DataLength = uint32(value.Uint())
+		case "QuorumBlobParams":
+			params := make([]QuorumBlobParam, value.Len())
+			for j := 0; j < value.Len(); j++ {
+				param := value.Index(j)
+				params[j] = QuorumBlobParam{
+					QuorumNumber:                    uint8(param.FieldByName("QuorumNumber").Uint()),
+					AdversaryThresholdPercentage:    uint8(param.FieldByName("AdversaryThresholdPercentage").Uint()),
+					ConfirmationThresholdPercentage: uint8(param.FieldByName("ConfirmationThresholdPercentage").Uint()),
+					ChunkLength:                     uint32(param.FieldByName("ChunkLength").Uint()),
+				}
+			}
+			blobHeader.QuorumBlobParams = params
+		default:
+			return BlobHeader{}, DecodeErr
+		}
+	}
+
+	return blobHeader, nil
+}
+
+func convertBlobVerificationProof(val reflect.Value) (BlobVerificationProof, error) {
+	proof := BlobVerificationProof{}
+	var err error
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		value := val.Field(i)
+
+		switch field.Name {
+		case "BatchId":
+			proof.BatchId = uint32(value.Uint())
+		case "BlobIndex":
+			proof.BlobIndex = uint32(value.Uint())
+		case "BatchMetadata":
+			proof.BatchMetadata, err = convertBatchMetadata(value)
+			if err != nil {
+				return BlobVerificationProof{}, DecodeErr
+			}
+		case "InclusionProof":
+			proof.InclusionProof = value.Interface().([]byte)
+		case "QuorumIndices":
+			proof.QuorumIndices = value.Interface().([]byte)
+		default:
+			return BlobVerificationProof{}, DecodeErr
+		}
+	}
+
+	return proof, nil
+}
+
+func convertBatchMetadata(val reflect.Value) (BatchMetadata, error) {
+	metadata := BatchMetadata{}
+	var err error
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		value := val.Field(i)
+
+		switch field.Name {
+		case "BatchHeader":
+			metadata.BatchHeader, err = convertBatchHeader(value)
+			if err != nil {
+				return BatchMetadata{}, DecodeErr
+			}
+		case "SignatoryRecordHash":
+			metadata.SignatoryRecordHash = value.Interface().([32]byte)
+		case "ConfirmationBlockNumber":
+			metadata.ConfirmationBlockNumber = uint32(value.Uint())
+		default:
+			return BatchMetadata{}, DecodeErr
+		}
+	}
+
+	return metadata, nil
+}
+
+func convertBatchHeader(val reflect.Value) (BatchHeader, error) {
+	header := BatchHeader{}
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		value := val.Field(i)
+
+		switch field.Name {
+		case "BlobHeadersRoot":
+			header.BlobHeadersRoot = value.Interface().([32]byte)
+		case "QuorumNumbers":
+			header.QuorumNumbers = value.Interface().([]uint8)
+		case "SignedStakeForQuorums":
+			header.SignedStakeForQuorums = value.Interface().([]uint8)
+		case "ReferenceBlockNumber":
+			header.ReferenceBlockNumber = uint32(value.Uint())
+		default:
+			return BatchHeader{}, DecodeErr
+		}
+	}
+
+	return header, nil
+}
+
+// -------- Debugging methods --------
 func (blobData BlobData) DebugLogBlobData() {
 	fmt.Println("Logging blob data...")
 
 	fmt.Println("--- Blob header ---")
-	fmt.Println("Blob header commitment x: ", blobData.BlobHeader.Commitment.X.Bytes())
-	fmt.Println("Blob header commitment y: ", blobData.BlobHeader.Commitment.Y.Bytes())
+	fmt.Println("Blob header commitment x: ", blobData.BlobHeader.Commitment.X)
+	fmt.Println("Blob header commitment y: ", blobData.BlobHeader.Commitment.Y)
 	fmt.Println("Blob header data length: ", blobData.BlobHeader.DataLength)
 	for idx, q := range blobData.BlobHeader.QuorumBlobParams {
 		fmt.Printf("Blob header quorum %v quorum number: %v\n", idx, q.QuorumNumber)
