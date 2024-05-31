@@ -20,9 +20,7 @@ contract EigenDAVerifier is
     /**
      * @notice Struct which will store the blob verification data
      * @param blobHeader stores the header of the blob containing the relevant attributes of the blob
-     * @param blobVerificationProof stores the relevant data needed to proove inclusion of the blob and that the trust
-     * @param batchHeaderHash the hash of the batch header
-     * assumption were as expected
+     * @param blobVerificationProof stores the relevant data needed to prove inclusion of the blob on EigenDA layer
      */
     struct BlobData {
         IEigenDAServiceManager.BlobHeader blobHeader;
