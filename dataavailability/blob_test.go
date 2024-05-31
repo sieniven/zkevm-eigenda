@@ -1,9 +1,11 @@
 package dataavailability
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +42,6 @@ func TestEncodeBlobData(t *testing.T) {
 			InclusionProof: []byte{0x01, 0x02, 0x03},
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
-		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
 	msg, err := TryEncodeToDataAvailabilityMessage(data)
 	assert.NoError(t, err)
@@ -81,12 +82,12 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 			InclusionProof: []byte{0x01, 0x02, 0x03},
 			QuorumIndices:  []byte{0x04, 0x05, 0x06},
 		},
-		BatchHeaderHash: []byte{0x01, 0x02, 0x03},
 	}
 	msg, err := TryEncodeToDataAvailabilityMessage(data)
 	assert.NoError(t, err)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
+	fmt.Println(hex.EncodeToString(msg))
 
 	// Check blob header
 	decoded_data, err := TryDecodeFromDataAvailabilityMessage(msg)
@@ -113,7 +114,44 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	assert.Equal(t, data.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber, decoded_data.BlobVerificationProof.BatchMetadata.ConfirmationBlockNumber)
 	assert.Equal(t, data.BlobVerificationProof.InclusionProof, decoded_data.BlobVerificationProof.InclusionProof)
 	assert.Equal(t, data.BlobVerificationProof.QuorumIndices, decoded_data.BlobVerificationProof.QuorumIndices)
+}
 
-	// Check blob batch header hash
-	assert.Equal(t, data.BatchHeaderHash, decoded_data.BatchHeaderHash)
+func TestGetBatchHeaderHash(t *testing.T) {
+	data := BlobData{
+		BlobHeader: BlobHeader{
+			Commitment: Commitment{
+				X: big.NewInt(12345),
+				Y: big.NewInt(67890),
+			},
+			DataLength: 100,
+			QuorumBlobParams: []QuorumBlobParam{
+				{
+					QuorumNumber:                    1,
+					AdversaryThresholdPercentage:    50,
+					ConfirmationThresholdPercentage: 75,
+					ChunkLength:                     1024,
+				},
+			},
+		},
+		BlobVerificationProof: BlobVerificationProof{
+			BatchId:   1,
+			BlobIndex: 2,
+			BatchMetadata: BatchMetadata{
+				BatchHeader: BatchHeader{
+					BlobHeadersRoot:       [32]byte{},
+					QuorumNumbers:         []byte{1, 2, 3},
+					SignedStakeForQuorums: []byte{50, 60, 70},
+					ReferenceBlockNumber:  12345,
+				},
+				SignatoryRecordHash:     [32]byte{},
+				ConfirmationBlockNumber: 54321,
+			},
+			InclusionProof: []byte{0x01, 0x02, 0x03},
+			QuorumIndices:  []byte{0x04, 0x05, 0x06},
+		},
+	}
+	hash, err := data.BlobVerificationProof.BatchMetadata.GetBatchHeaderHash()
+	assert.NoError(t, err)
+	assert.NotNil(t, hash)
+	assert.NotEmpty(t, hash)
 }

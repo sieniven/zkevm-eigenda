@@ -27,7 +27,6 @@ contract EigenDAVerifier is
     struct BlobData {
         IEigenDAServiceManager.BlobHeader blobHeader;
         EigenDARollupUtils.BlobVerificationProof blobVerificationProof;
-        bytes batchHeaderHash;
     }
 
     // Name of the data availability protocol

@@ -10,6 +10,7 @@ import (
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var ErrConvertFromABIInterface = errors.New("conversion from abi interface error")
@@ -17,7 +18,6 @@ var ErrConvertFromABIInterface = errors.New("conversion from abi interface error
 type BlobData struct {
 	BlobHeader            BlobHeader            `abi:"blobHeader"`
 	BlobVerificationProof BlobVerificationProof `abi:"blobVerificationProof"`
-	BatchHeaderHash       []byte                `abi:"batchHeaderHash"`
 }
 
 type BlobHeader struct {
@@ -65,6 +65,11 @@ type BatchHeader struct {
 	ReferenceBlockNumber  uint32 `abi:"referenceBlockNumber"`
 }
 
+type ReducedBatchHeader struct {
+	BlobHeadersRoot      common.Hash `abi:"blobHeadersRoot"`
+	ReferenceBlockNumber uint32      `abi:"referenceBlockNumber"`
+}
+
 func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
 	header := GetBlobHeader(info.GetBlobHeader())
 	proof, err := GetBlobVerificationProof(info.GetBlobVerificationProof())
@@ -74,7 +79,6 @@ func GetBlobData(info *disperser_rpc.BlobInfo) (BlobData, error) {
 	return BlobData{
 		BlobHeader:            header,
 		BlobVerificationProof: proof,
-		BatchHeaderHash:       info.GetBlobVerificationProof().GetBatchMetadata().GetBatchHeaderHash(),
 	}, nil
 }
 
@@ -127,6 +131,32 @@ func GetBlobVerificationProof(proof *disperser_rpc.BlobVerificationProof) (BlobV
 	}, nil
 }
 
+// Method to calculate the BatchHeaderHash.
+// Ref: https://github.com/Layr-Labs/eigenda/blob/5aecf5c2b679e69d363824513ba227388edcad82/contracts/src/libraries/EigenDAHasher.sol#L50
+func (data BatchMetadata) GetBatchHeaderHash() ([]byte, error) {
+	parsedABI, err := abi.JSON(bytes.NewReader([]byte(batchHeaderABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode the data
+	method, exist := parsedABI.Methods["ReducedBatchHeader"]
+	if !exist {
+		return nil, fmt.Errorf("abi error, BatchHeader method not found")
+	}
+
+	ReducedBatchHeader := ReducedBatchHeader{
+		BlobHeadersRoot:      data.BatchHeader.BlobHeadersRoot,
+		ReferenceBlockNumber: data.BatchHeader.ReferenceBlockNumber,
+	}
+	encoded, err := method.Inputs.Pack(ReducedBatchHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.Keccak256(encoded), nil
+}
+
 func TryEncodeToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
 	parsedABI, err := abi.JSON(bytes.NewReader([]byte(blobDataABI)))
 	if err != nil {
@@ -143,7 +173,6 @@ func TryEncodeToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%+v\n", blobData)
 
 	return encoded, nil
 }
@@ -191,8 +220,8 @@ func TryDecodeFromDataAvailabilityMessage(msg []byte) (BlobData, error) {
 			if err != nil {
 				return BlobData{}, ErrConvertFromABIInterface
 			}
-		case "BatchHeaderHash":
-			blobData.BatchHeaderHash = value.Interface().([]byte)
+		default:
+			return BlobData{}, ErrConvertFromABIInterface
 		}
 	}
 
@@ -344,9 +373,6 @@ func (blobData BlobData) DebugLogBlobData() {
 
 	fmt.Println("Blob verification proof inclusion proof: ", blobData.BlobVerificationProof.InclusionProof)
 	fmt.Println("Blob verification proof quorum indices: ", blobData.BlobVerificationProof.QuorumIndices)
-
-	fmt.Println("--- Batch header hash ---")
-	fmt.Println("Blob data batch header hash: ", blobData.BatchHeaderHash)
 }
 
 func DebugLogBlobInfoResponse(info *disperser_rpc.BlobInfo) {
@@ -377,7 +403,4 @@ func DebugLogBlobInfoResponse(info *disperser_rpc.BlobInfo) {
 
 	fmt.Println("Blob verification proof inclusion proof: ", info.BlobVerificationProof.InclusionProof)
 	fmt.Println("Blob verification proof quorum indices: ", info.BlobVerificationProof.QuorumIndexes)
-
-	fmt.Println("--- Batch header hash ---")
-	fmt.Println("Blob verification proof batch metadata batch header hash: ", info.BlobVerificationProof.BatchMetadata.BatchHeaderHash)
 }

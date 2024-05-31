@@ -96,13 +96,6 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 }
 
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
-	// Try decoding data availability message
-	blobData, err := TryDecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
 	// Get blob from EigenDA layer
 	var batchesData [][]byte
 	for _, hash := range batchHashes {
@@ -112,7 +105,19 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 		}
 		batchesData = append(batchesData, batchData)
 	}
-	reply, err := d.client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
+
+	// Try decoding data availability message
+	blobData, err := TryDecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	batchHeaderHash, err := blobData.BlobVerificationProof.BatchMetadata.GetBatchHeaderHash()
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err
@@ -148,8 +153,12 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 		fmt.Println(err)
 		return nil, err
 	}
+	batchHeaderHash, err := blobData.BlobVerificationProof.BatchMetadata.GetBatchHeaderHash()
+	if err != nil {
+		return nil, err
+	}
 
-	reply, err := d.client.RetrieveBlob(ctx, blobData.BatchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
+	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
 		fmt.Printf("failed to retrieve blob: %v\n", err)
 		return nil, err

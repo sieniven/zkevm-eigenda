@@ -30,9 +30,7 @@ func retrieve(cliCtx *cli.Context) error {
 		return err
 	}
 
-	for idx, batchData := range batchesData {
-		fmt.Printf("Batch %v data: %v\n", idx, string(batchData))
-	}
+	fmt.Println("Retrieved batches data of length ", len(batchesData))
 
 	return nil
 }
