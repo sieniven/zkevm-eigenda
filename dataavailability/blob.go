@@ -143,7 +143,6 @@ func TryEncodeToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%+v\n", blobData)
 
 	return encoded, nil
 }
