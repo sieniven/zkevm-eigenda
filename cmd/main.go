@@ -89,17 +89,17 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "da-test",
-			Aliases: []string{},
-			Usage:   "Test the EigenDA data availability instance functionality",
-			Action:  testDataAvailability,
-			Flags:   flags,
-		},
-		{
 			Name:    "retrieve",
 			Aliases: []string{},
 			Usage:   "Retrieve batch data from EigenDA request ID",
 			Action:  retrieve,
+			Flags:   flags,
+		},
+		{
+			Name:    "test-da",
+			Aliases: []string{},
+			Usage:   "Test the EigenDA data availability instance functionality",
+			Action:  testDataAvailability,
 			Flags:   flags,
 		},
 		{
