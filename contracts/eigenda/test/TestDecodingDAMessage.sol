@@ -47,5 +47,24 @@ contract TestDecodeDAMessage is Test {
         );
         EigenDAVerifier.BlobData memory decodedData = verifierContract.decodeBlobData(testMessage);
         assertEq(data.blobHeader.commitment.X, decodedData.blobHeader.commitment.X);
+        assertEq(data.blobHeader.commitment.Y, decodedData.blobHeader.commitment.Y);
+        assertEq(data.blobHeader.dataLength, decodedData.blobHeader.dataLength);
+        assertEq(data.blobHeader.quorumBlobParams.length, decodedData.blobHeader.quorumBlobParams.length);
+        for (uint i=0; i < data.blobHeader.quorumBlobParams.length; i++) {
+            assertEq(data.blobHeader.quorumBlobParams[i].quorumNumber, decodedData.blobHeader.quorumBlobParams[i].quorumNumber);
+            assertEq(data.blobHeader.quorumBlobParams[i].adversaryThresholdPercentage, decodedData.blobHeader.quorumBlobParams[i].adversaryThresholdPercentage);
+            assertEq(data.blobHeader.quorumBlobParams[i].confirmationThresholdPercentage, decodedData.blobHeader.quorumBlobParams[i].confirmationThresholdPercentage);
+            assertEq(data.blobHeader.quorumBlobParams[i].chunkLength, decodedData.blobHeader.quorumBlobParams[i].chunkLength);
+        }
+        assertEq(data.blobVerificationProof.batchId, decodedData.blobVerificationProof.batchId);
+        assertEq(data.blobVerificationProof.blobIndex, decodedData.blobVerificationProof.blobIndex);
+        assertEq(data.blobVerificationProof.batchMetadata.batchHeader.blobHeadersRoot, decodedData.blobVerificationProof.batchMetadata.batchHeader.blobHeadersRoot);
+        assertEq(data.blobVerificationProof.batchMetadata.batchHeader.quorumNumbers, decodedData.blobVerificationProof.batchMetadata.batchHeader.quorumNumbers);
+        assertEq(data.blobVerificationProof.batchMetadata.batchHeader.signedStakeForQuorums, decodedData.blobVerificationProof.batchMetadata.batchHeader.signedStakeForQuorums);
+        assertEq(data.blobVerificationProof.batchMetadata.batchHeader.referenceBlockNumber, decodedData.blobVerificationProof.batchMetadata.batchHeader.referenceBlockNumber);
+        assertEq(data.blobVerificationProof.batchMetadata.signatoryRecordHash, decodedData.blobVerificationProof.batchMetadata.signatoryRecordHash);
+        assertEq(data.blobVerificationProof.batchMetadata.confirmationBlockNumber, decodedData.blobVerificationProof.batchMetadata.confirmationBlockNumber);
+        assertEq(data.blobVerificationProof.inclusionProof, decodedData.blobVerificationProof.inclusionProof);
+        assertEq(data.blobVerificationProof.quorumIndices, decodedData.blobVerificationProof.quorumIndices);
     }
 }
