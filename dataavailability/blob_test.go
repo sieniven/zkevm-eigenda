@@ -1,11 +1,9 @@
 package dataavailability
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -87,7 +85,6 @@ func TestEncodeDecodeBlobData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, msg)
 	assert.NotEmpty(t, msg)
-	fmt.Println(hex.EncodeToString(msg))
 
 	// Check blob header
 	decoded_data, err := TryDecodeFromDataAvailabilityMessage(msg)
