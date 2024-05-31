@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var DecodeErr = errors.New("not found")
+var ErrConvertFromABIInterface = errors.New("conversion from abi interface error")
 
 type BlobData struct {
 	BlobHeader            BlobHeader            `abi:"blobHeader"`
@@ -143,6 +143,7 @@ func TryEncodeToDataAvailabilityMessage(blobData BlobData) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%+v\n", blobData)
 
 	return encoded, nil
 }
@@ -183,12 +184,12 @@ func TryDecodeFromDataAvailabilityMessage(msg []byte) (BlobData, error) {
 		case "BlobHeader":
 			blobData.BlobHeader, err = convertBlobHeader(value)
 			if err != nil {
-				return BlobData{}, DecodeErr
+				return BlobData{}, ErrConvertFromABIInterface
 			}
 		case "BlobVerificationProof":
 			blobData.BlobVerificationProof, err = convertBlobVerificationProof(value)
 			if err != nil {
-				return BlobData{}, DecodeErr
+				return BlobData{}, ErrConvertFromABIInterface
 			}
 		case "BatchHeaderHash":
 			blobData.BatchHeaderHash = value.Interface().([]byte)
@@ -227,7 +228,7 @@ func convertBlobHeader(val reflect.Value) (BlobHeader, error) {
 			}
 			blobHeader.QuorumBlobParams = params
 		default:
-			return BlobHeader{}, DecodeErr
+			return BlobHeader{}, ErrConvertFromABIInterface
 		}
 	}
 
@@ -250,14 +251,14 @@ func convertBlobVerificationProof(val reflect.Value) (BlobVerificationProof, err
 		case "BatchMetadata":
 			proof.BatchMetadata, err = convertBatchMetadata(value)
 			if err != nil {
-				return BlobVerificationProof{}, DecodeErr
+				return BlobVerificationProof{}, ErrConvertFromABIInterface
 			}
 		case "InclusionProof":
 			proof.InclusionProof = value.Interface().([]byte)
 		case "QuorumIndices":
 			proof.QuorumIndices = value.Interface().([]byte)
 		default:
-			return BlobVerificationProof{}, DecodeErr
+			return BlobVerificationProof{}, ErrConvertFromABIInterface
 		}
 	}
 
@@ -276,14 +277,14 @@ func convertBatchMetadata(val reflect.Value) (BatchMetadata, error) {
 		case "BatchHeader":
 			metadata.BatchHeader, err = convertBatchHeader(value)
 			if err != nil {
-				return BatchMetadata{}, DecodeErr
+				return BatchMetadata{}, ErrConvertFromABIInterface
 			}
 		case "SignatoryRecordHash":
 			metadata.SignatoryRecordHash = value.Interface().([32]byte)
 		case "ConfirmationBlockNumber":
 			metadata.ConfirmationBlockNumber = uint32(value.Uint())
 		default:
-			return BatchMetadata{}, DecodeErr
+			return BatchMetadata{}, ErrConvertFromABIInterface
 		}
 	}
 
@@ -307,7 +308,7 @@ func convertBatchHeader(val reflect.Value) (BatchHeader, error) {
 		case "ReferenceBlockNumber":
 			header.ReferenceBlockNumber = uint32(value.Uint())
 		default:
-			return BatchHeader{}, DecodeErr
+			return BatchHeader{}, ErrConvertFromABIInterface
 		}
 	}
 
