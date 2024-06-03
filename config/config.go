@@ -23,6 +23,7 @@ const (
 	FlagRequestID = "requestid"
 	FlagTo        = "to"
 	FlagPassword  = "password"
+	FlagAdmin     = "admin"
 )
 
 // Represents the configuration of the entire mock Polygon CDK Node

@@ -63,6 +63,14 @@ var passwordFlag = cli.StringFlag{
 	Value:    "password",
 }
 
+var adminAddress = cli.StringFlag{
+	Name:     config.FlagAdmin,
+	Aliases:  []string{"adminaddress"},
+	Usage:    "set admin address for zkevm contracts",
+	Required: false,
+	Value:    "",
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
@@ -72,6 +80,7 @@ func main() {
 		&blobIdFlag,
 		&toFlag,
 		&passwordFlag,
+		&adminAddress,
 	}
 	app.Commands = []*cli.Command{
 		{
@@ -121,6 +130,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Create new eth keystore",
 			Action:  createKeystore,
+			Flags:   flags,
+		},
+		{
+			Name:    "deploy-verifer",
+			Aliases: []string{},
+			Usage:   "Deploy the eigenda proxy verifier contract",
+			ActionL: deployVerifier,
 			Flags:   flags,
 		},
 	}

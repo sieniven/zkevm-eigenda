@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/eigendaverifier"
 	"github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonrollupmanager"
 	polygonzkevm "github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/polygonvalidium_xlayer"
 	ethmanTypes "github.com/sieniven/zkevm-eigenda/etherman/types"
@@ -49,16 +50,17 @@ type externalGasProviders struct {
 
 // Minimal implementation of PolygonCDK's ether manager
 type Client struct {
-	EthClient     ethereumClient
-	ZkEVM         *polygonzkevm.PolygonvalidiumXlayer
-	RollupManager *polygonrollupmanager.Polygonrollupmanager
-	SCAddresses   []common.Address
-	RollupID      uint32
-	GasProviders  externalGasProviders
-	l1Cfg         L1Config
-	cfg           Config
-	auth          map[common.Address]bind.TransactOpts // empty in case of read-only client
-	da            dataavailability.BatchDataProvider
+	EthClient       ethereumClient
+	ZkEVM           *polygonzkevm.PolygonvalidiumXlayer
+	RollupManager   *polygonrollupmanager.Polygonrollupmanager
+	EigendaVerifier *eigendaverifier.Eigendaverifier
+	SCAddresses     []common.Address
+	RollupID        uint32
+	GasProviders    externalGasProviders
+	l1Cfg           L1Config
+	cfg             Config
+	auth            map[common.Address]bind.TransactOpts // empty in case of read-only client
+	da              dataavailability.BatchDataProvider
 }
 
 type ethereumClient interface {
@@ -105,6 +107,11 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		fmt.Printf("error creating NewPolygonrollupmanager client (%s)\n", l1Config.RollupManagerAddr.String())
 		return nil, err
 	}
+	eigendaVerifier, err := eigendaverifier.NewEigendaverifier(l1Config.EigenDAVerifierManagerAddr, ethClient)
+	if err != nil {
+		fmt.Printf("error creating NewEigendaverifier client (%s)\n", l1Config.EigenDAVerifierManagerAddr.String())
+		return nil, err
+	}
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.EigenDAVerifierManagerAddr)
 
@@ -117,11 +124,12 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	}
 
 	return &Client{
-		EthClient:     ethClient,
-		ZkEVM:         zkevm,
-		RollupManager: rollupManager,
-		SCAddresses:   scAddresses,
-		RollupID:      rollupID,
+		EthClient:       ethClient,
+		ZkEVM:           zkevm,
+		RollupManager:   rollupManager,
+		EigendaVerifier: eigendaVerifier,
+		SCAddresses:     scAddresses,
+		RollupID:        rollupID,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: false,
 			Providers:        gProviders,
