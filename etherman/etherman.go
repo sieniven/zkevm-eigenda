@@ -87,6 +87,8 @@ type L1Config struct {
 	RollupManagerAddr common.Address `mapstructure:"polygonRollupManagerAddress"`
 	// EigenDAVerifierManagerAddr Address of the L1 contract
 	EigenDAVerifierManagerAddr common.Address `mapstructure:"eigenDAVerifierManagerAddress"`
+	// EigenDAServiceManagerAddr Address of the L1 contract
+	EigenDaServiceManagerAddr common.Address `mapstructure:"eigenDAServiceManagerAddress"`
 }
 
 func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
@@ -246,8 +248,8 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
-// getAuthByAddress tries to get an authorization from the authorizations map
-func (etherMan *Client) getAuthByAddress(addr common.Address) (bind.TransactOpts, error) {
+// GetAuthByAddress tries to get an authorization from the authorizations map
+func (etherMan *Client) GetAuthByAddress(addr common.Address) (bind.TransactOpts, error) {
 	auth, found := etherMan.auth[addr]
 	if !found {
 		return bind.TransactOpts{}, ErrNotFound
@@ -334,7 +336,7 @@ func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error
 
 // SignTx tries to sign a transaction accordingly to the provided sender
 func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
-	auth, err := etherMan.getAuthByAddress(sender)
+	auth, err := etherMan.GetAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, ErrNotFound
 	}
@@ -387,7 +389,7 @@ func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash)
 
 // SetDataAvailabilityProtocol sets the address for the new data availability protocol
 func (etherMan *Client) SetDataAvailabilityProtocol(from, daAddress common.Address) (*types.Transaction, error) {
-	auth, err := etherMan.getAuthByAddress(from)
+	auth, err := etherMan.GetAuthByAddress(from)
 	if err != nil {
 		return nil, err
 	}

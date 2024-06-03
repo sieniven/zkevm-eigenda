@@ -133,10 +133,10 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "deploy-verifer",
+			Name:    "deploy-verifier",
 			Aliases: []string{},
 			Usage:   "Deploy the eigenda proxy verifier contract",
-			ActionL: deployVerifier,
+			Action:  deployVerifier,
 			Flags:   flags,
 		},
 	}

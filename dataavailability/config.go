@@ -1,6 +1,8 @@
 package dataavailability
 
-import "github.com/sieniven/zkevm-eigenda/config/types"
+import (
+	"github.com/sieniven/zkevm-eigenda/config/types"
+)
 
 type Config struct {
 	Hostname                 string         `mapstructure:"Hostname"`

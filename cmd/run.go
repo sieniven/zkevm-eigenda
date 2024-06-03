@@ -31,6 +31,11 @@ func start(cliCtx *cli.Context) error {
 		panic(err)
 	}
 
+	// Create new data avaiability manager
+	p := eigenda.NewDataProvider(c.DataAvailability)
+	da := dataavailability.New(c.DataAvailability, p)
+	etherMan.SetDataProvider(da)
+
 	// Initialize eth tx manager instance
 	etm := ethtxmanager.New(c.EthTxManager, etherMan)
 
