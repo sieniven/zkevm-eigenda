@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/urfave/cli/v2"
 )
@@ -28,7 +29,8 @@ func testEtherman(cliCtx *cli.Context) error {
 	}
 
 	// Create new data avaiability manager
-	da := dataavailability.New(c.EigenDAClient)
+	p := eigenda.NewDataProvider(c.DataAvailability)
+	da := dataavailability.New(c.DataAvailability, p)
 	etherMan.SetDataProvider(da)
 
 	// Initialize keys

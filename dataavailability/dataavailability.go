@@ -18,10 +18,10 @@ type DataAvailability struct {
 }
 
 // Factory method for a new data availability manager instance
-func New(cfg Config) *DataAvailability {
+func New(cfg Config, backend DABackender) *DataAvailability {
 	da := &DataAvailability{
 		ctx:     context.Background(),
-		backend: NewDataProvider(cfg),
+		backend: backend,
 	}
 	return da
 }

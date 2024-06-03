@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/sieniven/zkevm-eigenda/etherman"
 	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
 	"github.com/sieniven/zkevm-eigenda/log"
@@ -81,7 +82,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func newDataAvailability(c config.Config) (*dataavailability.DataAvailability, error) {
-	da := dataavailability.New(c.EigenDAClient)
+	p := eigenda.NewDataProvider(c.DataAvailability)
+	da := dataavailability.New(c.DataAvailability, p)
 	return da, nil
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/urfave/cli/v2"
 )
 
@@ -16,7 +17,8 @@ func retrieve(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	da := dataavailability.New(c.EigenDAClient)
+	p := eigenda.NewDataProvider(c.DataAvailability)
+	da := dataavailability.New(c.DataAvailability, p)
 
 	// Get EigenDA blob information
 	requestId := cliCtx.String(config.FlagRequestID)

@@ -1,4 +1,4 @@
-package dataavailability
+package eigenda
 
 import (
 	"context"
@@ -11,11 +11,12 @@ import (
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/sieniven/zkevm-eigenda/config/types"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
-	cfg := Config{
+	cfg := dataavailability.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
 		Timeout:           types.NewDuration(30 * time.Second),

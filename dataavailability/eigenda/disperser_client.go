@@ -1,4 +1,4 @@
-package dataavailability
+package eigenda
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding"
 	"github.com/Layr-Labs/eigenda/encoding/rs"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -24,11 +25,11 @@ import (
 // }
 
 type DisperserClient struct {
-	cfg    *Config
+	cfg    *dataavailability.Config
 	signer core.BlobRequestSigner
 }
 
-func NewDisperserClient(cfg *Config, signer core.BlobRequestSigner) *DisperserClient {
+func NewDisperserClient(cfg *dataavailability.Config, signer core.BlobRequestSigner) *DisperserClient {
 	return &DisperserClient{
 		cfg:    cfg,
 		signer: signer,

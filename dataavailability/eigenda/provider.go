@@ -1,4 +1,4 @@
-package dataavailability
+package eigenda
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 )
 
 var (
@@ -21,13 +22,13 @@ var (
 // It contains the implementation of SequenceSender and SequenceRetriever of the zkevm's
 // dataavailability package.
 type DataAvailabilityProvider struct {
-	cfg    Config
+	cfg    dataavailability.Config
 	state  DAStorage
 	client *DisperserClient
 }
 
 // Factory method for a new DataAvailibilityProvider instance
-func NewDataProvider(cfg Config) *DataAvailabilityProvider {
+func NewDataProvider(cfg dataavailability.Config) *DataAvailabilityProvider {
 	// Initialize in-memory DA storage
 	s := DAStorage{
 		inner: map[common.Hash][]byte{},

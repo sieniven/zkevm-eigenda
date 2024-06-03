@@ -1,4 +1,4 @@
-package dataavailability
+package eigenda
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sieniven/zkevm-eigenda/config/types"
+	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/stretchr/testify/assert"
 )
 
 // Set longer timeout flag for test case
 func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
-	cfg := Config{
+	cfg := dataavailability.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
 		Timeout:           types.NewDuration(30 * time.Second),
@@ -69,7 +70,7 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 
 // Set longer timeout flag for test case
 func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
-	cfg := Config{
+	cfg := dataavailability.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
 		Timeout:           types.NewDuration(30 * time.Second),

@@ -9,7 +9,7 @@ import (
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/Layr-Labs/eigenda/encoding/utils/codec"
 	"github.com/sieniven/zkevm-eigenda/config"
-	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,8 +20,8 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	signer := dataavailability.MockBlobRequestSigner{}
-	client := dataavailability.NewDisperserClient(&c.EigenDAClient, signer)
+	signer := eigenda.MockBlobRequestSigner{}
+	client := eigenda.NewDisperserClient(&c.DataAvailability, signer)
 
 	// Generate mock string batch data
 	stringData := "hihihihihihihihihihihihihihihihihihi"
@@ -71,7 +71,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 			// Reset timer and status
 			timer = time.Now()
 			status = currStatus
-			time.Sleep(c.EigenDAClient.RetrieveBlobStatusPeriod.Duration)
+			time.Sleep(c.DataAvailability.RetrieveBlobStatusPeriod.Duration)
 
 			if status == disperser_rpc.BlobStatus_CONFIRMED {
 				// Test retrieve blob pipeline
@@ -84,7 +84,7 @@ func getEigenDAMetrics(cliCtx *cli.Context) error {
 				}
 
 				info := blobStatusReply.GetInfo()
-				blobData, err := dataavailability.GetBlobData(info)
+				blobData, err := eigenda.GetBlobData(info)
 				if err != nil {
 					panic(err)
 				}

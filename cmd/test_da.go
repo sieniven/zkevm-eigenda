@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/sieniven/zkevm-eigenda/etherman/types"
 	batchTypes "github.com/sieniven/zkevm-eigenda/sequencesender/types"
 	"github.com/urfave/cli/v2"
@@ -19,7 +20,8 @@ func testDataAvailability(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	da := dataavailability.New(c.EigenDAClient)
+	p := eigenda.NewDataProvider(c.DataAvailability)
+	da := dataavailability.New(c.DataAvailability, p)
 
 	// Generate mock batch data
 	// Generate mock batch data for max configured size

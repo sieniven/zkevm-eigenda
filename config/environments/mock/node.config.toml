@@ -21,7 +21,7 @@ L2Coinbase = "0xD6DdA5AA7749142B7fDa3Fe4662C9f346101B8A6"
 MaxBatchesForL1 = 20
 MaxBatchBytesSize = 120000
 
-[EigenDAClient]
+[DataAvailability]
 Hostname = "disperser-holesky.eigenda.xyz"
 Port = 443
 Timeout = "30s"
