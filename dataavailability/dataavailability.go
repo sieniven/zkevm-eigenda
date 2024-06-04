@@ -68,7 +68,6 @@ func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []comm
 
 // Get batch data from EigenDA request ID
 func (d *DataAvailability) GetBatchL2DataFromRequestId(ctx context.Context, id []byte) ([][]byte, error) {
-	fmt.Println("trying to get batch data from EigenDA request id: ", string(id))
 	msg, err := d.backend.GetDataAvailabilityMessageFromId(ctx, id)
 	if err != nil {
 		return nil, err

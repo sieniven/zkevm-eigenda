@@ -146,6 +146,13 @@ func main() {
 			Action:  deployVerifier,
 			Flags:   flags,
 		},
+		{
+			Name:    "test-verifier",
+			Aliases: []string{},
+			Usage:   "Test the eigenda proxy verifier contract",
+			Action:  testVerifier,
+			Flags:   flags,
+		},
 	}
 
 	err := app.Run(os.Args)

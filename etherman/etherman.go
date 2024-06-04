@@ -144,6 +144,10 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	}, nil
 }
 
+func (etherMan *Client) VerifyDataAvailabilityMessage(dataAvailabilityMessage []byte) error {
+	return etherMan.EigendaVerifier.VerifyMessage(&bind.CallOpts{Pending: false}, [32]byte{}, dataAvailabilityMessage)
+}
+
 // EstimateGasSequenceBatchesXLayer estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	opts, err := etherMan.generateMockAuth(sender)
