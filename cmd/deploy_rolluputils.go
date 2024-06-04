@@ -46,12 +46,6 @@ func deployLibraries(cliCtx *cli.Context) error {
 	fmt.Println("Deploying with admin address: ", adminAddr)
 	fmt.Printf("from pk %s, from sender %s\n", crypto.PubkeyToAddress(privKey.PublicKey), adminAddr.String()) //nolint:staticcheck
 
-	// // Get auth
-	// auth, err := etherMan.GetAuthByAddress(adminAddr)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	// Get EigenDARollupUtils library compiled bytecode
 	content, err := os.ReadFile("/Users/nivensie/zkevm-eigenda/etherman/smartcontracts/bin/eigendarolluputils.bin")
 	if err != nil {

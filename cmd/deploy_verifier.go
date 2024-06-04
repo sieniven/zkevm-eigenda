@@ -4,14 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/sieniven/zkevm-eigenda/config"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/dataavailability/eigenda"
 	"github.com/sieniven/zkevm-eigenda/etherman/smartcontracts/eigendaverifier"
+	"github.com/sieniven/zkevm-eigenda/ethtxmanager"
 	"github.com/urfave/cli/v2"
 )
 
@@ -46,13 +47,6 @@ func deployVerifier(cliCtx *cli.Context) error {
 	fmt.Printf("from pk %s, from sender %s\n", crypto.PubkeyToAddress(privKey.PublicKey), adminAddr.String()) //nolint:staticcheck
 	fmt.Println("EigenDA service manager address: ", c.L1Config.EigenDaServiceManagerAddr)
 
-	// Get auth
-	auth, err := etherMan.GetAuthByAddress(adminAddr)
-	if err != nil {
-		panic(err)
-	}
-
-	// Estimate gas
 	parsed, err := eigendaverifier.EigendaverifierMetaData.GetAbi()
 	if err != nil || parsed == nil {
 		return fmt.Errorf("estimate gas error, cannot get abi")
@@ -61,7 +55,15 @@ func deployVerifier(cliCtx *cli.Context) error {
 	if err != nil {
 		panic(err)
 	}
-	bytecode := common.FromHex(eigendaverifier.EigendaverifierBin)
+
+	// Get deployed EigenDARollupUtils lib address
+	utilsAddr := c.L1Config.EigenDARollupUtilsAddr.Hex()[2:]
+	paddedUtilsAddr := padWithZeros(utilsAddr, 40)
+
+	// Replace placeholder with padded utils address
+	placeholder := "__$399f9ce8dd33a06d144ce1eb24d845e280$__"
+	bytecode := common.FromHex(strings.Replace(eigendaverifier.EigendaverifierBin, placeholder, paddedUtilsAddr, -1))
+
 	input = append(bytecode, input...)
 	gas, err := etherMan.EstimateGas(cliCtx.Context, adminAddr, nil, big.NewInt(0), input)
 	if err != nil {
@@ -69,18 +71,36 @@ func deployVerifier(cliCtx *cli.Context) error {
 	}
 	fmt.Println("estimate gas: ", gas)
 
-	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(c.Etherman.URL)
-	if err != nil {
-		fmt.Printf("error connecting to %s: %+v\n", c.Etherman.URL, err)
-		return err
-	}
-	deployedAddr, deploymentTx, _, err := eigendaverifier.DeployEigendaverifier(&auth, ethClient, adminAddr, c.L1Config.EigenDaServiceManagerAddr)
+	// Start eth-tx-manager service
+	etm := ethtxmanager.New(c.EthTxManager, etherMan)
+	go etm.Start()
+
+	// Send library deployment tx
+	id := "deploy"
+	owner := "deployment"
+	value := big.NewInt(0)
+	err = etm.Add(cliCtx.Context, owner, id, adminAddr, nil, value, bytecode, c.SequenceSender.GasOffset)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Deployed to address: ", deployedAddr.String())
-	fmt.Println("Deployment tx hash: ", deploymentTx.Hash().Hex())
-	fmt.Println("Deployment tx info: ", deploymentTx)
+	fmt.Println("Sent signed tx to node")
+
+	flag := true
+	for flag {
+		etm.ProcessPendingMonitoredTxs(cliCtx.Context, owner, func(result ethtxmanager.MonitoredTxResult) {
+			if result.Status == ethtxmanager.MonitoredTxStatusFailed || result.Status == ethtxmanager.MonitoredTxStatusConfirmed {
+				flag = false
+			}
+		})
+	}
+	etm.Stop()
 	return nil
+}
+
+func padWithZeros(input string, length int) string {
+	if len(input) >= length {
+		return input
+	}
+	padding := strings.Repeat("0", length-len(input))
+	return input + padding
 }

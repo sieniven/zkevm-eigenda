@@ -85,6 +85,8 @@ type L1Config struct {
 	ZkEVMAddr common.Address `mapstructure:"polygonZkEVMAddress"`
 	// RollupManagerAddr Address of the L1 contract
 	RollupManagerAddr common.Address `mapstructure:"polygonRollupManagerAddress"`
+	// EigenDARollupUtilsAddr Address of the L1 library
+	EigenDARollupUtilsAddr common.Address `mapstructure:"eigenDARollupUtilsAddress"`
 	// EigenDAVerifierManagerAddr Address of the L1 contract
 	EigenDAVerifierManagerAddr common.Address `mapstructure:"eigenDAVerifierManagerAddress"`
 	// EigenDAServiceManagerAddr Address of the L1 contract
