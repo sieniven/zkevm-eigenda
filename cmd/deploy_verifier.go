@@ -79,7 +79,7 @@ func deployVerifier(cliCtx *cli.Context) error {
 	id := "deploy"
 	owner := "deployment"
 	value := big.NewInt(0)
-	err = etm.Add(cliCtx.Context, owner, id, adminAddr, nil, value, bytecode, c.SequenceSender.GasOffset)
+	err = etm.Add(cliCtx.Context, owner, id, adminAddr, nil, value, input, c.SequenceSender.GasOffset)
 	if err != nil {
 		panic(err)
 	}
