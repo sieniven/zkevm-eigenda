@@ -78,6 +78,13 @@ contract EigenDAVerifier is
         return _PROTOCOL_NAME;
     }
 
+    /**
+     * @notice Return the data availability protocol address
+     */
+    function getDataAvailabilityProtocol() external view returns (address) {
+        return address(dataAvailabilityProtocol);
+    }
+
     /////////////////////////////////////////////
     // Data availability message decode functions
     /////////////////////////////////////////////

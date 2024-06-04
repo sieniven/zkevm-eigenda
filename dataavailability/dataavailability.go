@@ -75,3 +75,8 @@ func (d *DataAvailability) GetBatchL2DataFromRequestId(ctx context.Context, id [
 		return d.GetBatchL2Data([]uint64{}, []common.Hash{}, msg)
 	}
 }
+
+// Get data availability message from EigenDA request ID
+func (d *DataAvailability) GetDataAvailabilityMessageFromRequestId(ctx context.Context, id []byte) ([]byte, error) {
+	return d.backend.GetDataAvailabilityMessageFromId(ctx, id)
+}

@@ -35,8 +35,8 @@ polygonRollupManagerAddress = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
 polTokenAddress = "0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3F6"
 polygonZkEVMGlobalExitRootAddress = "0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb"
 eigenDARollupUtilsAddress = "0xe65b98311240ea0d545fc5a7Fe10eE5B53e0E91f"
-eigenDAVerifierManagerAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-eigenDAServiceManagerAddress = "0x870679E138bCdf293b7Ff14dD44b70FC97e12fc0"
+eigenDAVerifierManagerAddress = "0xd9804c4A965A682e368Fe03394e93b400313f6b3"
+eigenDAServiceManagerAddress = "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
 
 [Key]
 Path = "/etc/keystore/"
