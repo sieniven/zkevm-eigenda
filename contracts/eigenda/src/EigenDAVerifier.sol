@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 
 import {EigenDARollupUtils} from "eigenda/libraries/EigenDARollupUtils.sol";
 import {IEigenDAServiceManager} from "eigenda/interfaces/IEigenDAServiceManager.sol";
-import {BN254} from "eigenlayer-middleware/libraries/BN254.sol";
 import "../interfaces/IDataAvailabilityProtocol.sol";
 import "../interfaces/IPolygonZkEVMVEtrogErrors.sol";
 

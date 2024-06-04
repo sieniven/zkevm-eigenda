@@ -40,14 +40,11 @@ func deployVerifier(cliCtx *cli.Context) error {
 		panic(errors.New("private key not found"))
 	}
 
-	// Get EigenDA blob information
 	admin := cliCtx.String(config.FlagAdmin)
 	adminAddr := common.HexToAddress(admin)
 	fmt.Println("Deploying with admin address: ", adminAddr)
-	if err != nil {
-		panic(err)
-	}
 	fmt.Printf("from pk %s, from sender %s\n", crypto.PubkeyToAddress(privKey.PublicKey), adminAddr.String()) //nolint:staticcheck
+	fmt.Println("EigenDA service manager address: ", c.L1Config.EigenDaServiceManagerAddr)
 
 	// Get auth
 	auth, err := etherMan.GetAuthByAddress(adminAddr)
