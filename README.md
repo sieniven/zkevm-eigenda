@@ -7,6 +7,11 @@
 - Full on-chain solution to integrate EigenDA blob verification pipeline with existing Polygon zkevm-validium interfaces for sequence verification.
 - The PoC aims to be verified to be working on Ethereum Holesky network.
 
+# Implementation
+
+- Implements EigenDAVerifier contract that implements the [`IDataAvailabilityProtocol`](https://github.com/0xPolygonHermez/zkevm-contracts/blob/1ad7089d04910c319a257ff4f3674ffd6fc6e64e/contracts/v2/interfaces/IDataAvailabilityProtocol.sol) interface
+- To maintain backwards compatibility, the EigenDAVerifier contract is designed for an adaptor pattern verifies on-chain the data availability proofs with the EigenDAServiceManager.
+
 # Current testnet deployment
 
 The current testnet deployment is on Ethereum Holesky, with the deployed contract addresses below.
