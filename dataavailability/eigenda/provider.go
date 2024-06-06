@@ -28,7 +28,7 @@ type DataAvailabilityProvider struct {
 }
 
 // Factory method for a new DataAvailibilityProvider instance
-func NewDataProvider(cfg dataavailability.Config) *DataAvailabilityProvider {
+func NewDataAvailabilityProvider(cfg dataavailability.Config) *DataAvailabilityProvider {
 	// Initialize in-memory DA storage
 	s := DAStorage{
 		inner: map[common.Hash][]byte{},

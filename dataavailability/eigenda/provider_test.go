@@ -21,7 +21,7 @@ func TestDisperseBlobWithStringDataUsingProvider(t *testing.T) {
 		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
-	provider := NewDataProvider(cfg)
+	provider := NewDataAvailabilityProvider(cfg)
 
 	// Generate mock string batch data
 	stringData := "hihihihihihihihihihihihihihihihihihi"
@@ -76,7 +76,7 @@ func TestDisperseBlobWithRandomDataUsingProvider(t *testing.T) {
 		Timeout:           types.NewDuration(30 * time.Second),
 		UseSecureGrpcFlag: true,
 	}
-	provider := NewDataProvider(cfg)
+	provider := NewDataAvailabilityProvider(cfg)
 
 	// Define Different DataSizes
 	dataSize := []int{100000, 200000, 1000, 80, 30000}

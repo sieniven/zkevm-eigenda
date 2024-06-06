@@ -29,7 +29,7 @@ func testEtherman(cliCtx *cli.Context) error {
 	}
 
 	// Create new data avaiability manager
-	p := eigenda.NewDataProvider(c.DataAvailability)
+	p := eigenda.NewDataAvailabilityProvider(c.DataAvailability)
 	da := dataavailability.New(c.DataAvailability, p)
 	etherMan.SetDataProvider(da)
 

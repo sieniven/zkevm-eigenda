@@ -28,7 +28,7 @@ func testSendAndVerify(cliCtx *cli.Context) error {
 	}
 
 	// Create new data avaiability manager
-	p := eigenda.NewDataProvider(c.DataAvailability)
+	p := eigenda.NewDataAvailabilityProvider(c.DataAvailability)
 	da := dataavailability.New(c.DataAvailability, p)
 	etherMan.SetDataProvider(da)
 	_, privKey, err := etherMan.LoadAuthFromKeyStore(c.Key.Path, c.Key.Password)

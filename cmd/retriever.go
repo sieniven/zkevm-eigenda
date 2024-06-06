@@ -17,7 +17,7 @@ func retrieve(cliCtx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	p := eigenda.NewDataProvider(c.DataAvailability)
+	p := eigenda.NewDataAvailabilityProvider(c.DataAvailability)
 	da := dataavailability.New(c.DataAvailability, p)
 
 	// Get EigenDA blob information
