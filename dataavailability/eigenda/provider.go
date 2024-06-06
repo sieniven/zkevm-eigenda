@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	ErrDisperseFailed         = errors.New("disperse blob on EigenDA layer failed")
+	// ErrDisperseFailed is used when blob dispersion failed
+	ErrDisperseFailed = errors.New("disperse blob on EigenDA layer failed")
+	// ErrInsufficientSignatures is there are insufficient signatures
 	ErrInsufficientSignatures = errors.New("insufficient signatures, confirmation threshold for blob not met")
 )
 
@@ -27,7 +29,7 @@ type DataAvailabilityProvider struct {
 	client *DisperserClient
 }
 
-// Factory method for a new DataAvailibilityProvider instance
+// NewDataAvailabilityProvider creates a new data availability provider
 func NewDataAvailabilityProvider(cfg dataavailability.Config) *DataAvailabilityProvider {
 	// Initialize in-memory DA storage
 	s := DAStorage{
@@ -45,10 +47,14 @@ func NewDataAvailabilityProvider(cfg dataavailability.Config) *DataAvailabilityP
 	return p
 }
 
+// Init initializes the data availability provider
 func (d *DataAvailabilityProvider) Init() error {
 	return nil
 }
 
+// PostSequence encodes and posts the sequence to the EigenDA layer and verifies that
+// the blob gets confirmed or finalized. If the sequence is successfully posted, the
+// pipeline encodes the blob data and returns the data availability message
 func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Send blob to EigenDA disperser
 	blobData := EncodeSequence(batchesData)
@@ -96,6 +102,8 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	return TryEncodeToDataAvailabilityMessage(data)
 }
 
+// GetSequence gets blob data from the EigenDA layer and decodes the blob data into
+// L2 batches data
 func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	// Get blob from EigenDA layer
 	var batchesData [][]byte
@@ -129,13 +137,13 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	return batchesData, nil
 }
 
+// StoreDataAvailabilityMessage stores the data availaiblity message into storage
 func (d *DataAvailabilityProvider) StoreDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
 	// Store blob information inside in-memory DA storage
 	err := d.state.Add(batchHash, dataAvailabilityMessage)
 	if err != nil {
 		fmt.Printf("error adding data availability message into storage: %v\n", err)
-		// Should not come here, but we will panic the mock node if indexing fails
-		panic(err)
+		return err
 	}
 
 	return nil
@@ -176,7 +184,7 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 	return nil, fmt.Errorf("failed to get batch data from hash, corrupted DA storage")
 }
 
-// Get data availability message from request ID
+// GetDataAvailabilityMessageFromId gets the data availability message from request ID
 func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.Context, requestId []byte) ([]byte, error) {
 	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
 	if err != nil {

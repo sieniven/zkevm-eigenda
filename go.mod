@@ -3,7 +3,7 @@ module github.com/sieniven/zkevm-eigenda
 go 1.22.2
 
 require (
-	github.com/0xPolygonHermez/zkevm-node v0.6.7
+	github.com/sieniven/zkevm-eigenda v0.6.7
 	github.com/Layr-Labs/eigenda v0.7.1
 	github.com/Layr-Labs/eigenda/api v0.7.1
 	github.com/ethereum/go-ethereum v1.14.0

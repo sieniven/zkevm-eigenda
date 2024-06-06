@@ -1,7 +1,7 @@
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
-github.com/0xPolygonHermez/zkevm-node v0.6.7 h1:vdKMB394guvUHyIobwV2Cqm4D3kDfakMkQi1ou5yYy8=
-github.com/0xPolygonHermez/zkevm-node v0.6.7/go.mod h1:57LAvmJ5IEr911nXeg9UzQvJ7z/a0Jo4VdUdYtoZ0aQ=
+github.com/sieniven/zkevm-eigenda v0.6.7 h1:vdKMB394guvUHyIobwV2Cqm4D3kDfakMkQi1ou5yYy8=
+github.com/sieniven/zkevm-eigenda v0.6.7/go.mod h1:57LAvmJ5IEr911nXeg9UzQvJ7z/a0Jo4VdUdYtoZ0aQ=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOElx5B5HZ4hJQsoJ/PvUvKRhJHDQXO8P8=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
