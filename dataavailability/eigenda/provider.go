@@ -10,6 +10,7 @@ import (
 
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
 	"github.com/sieniven/zkevm-eigenda/log"
 )
@@ -105,7 +106,21 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 		log.Error("Error getting blob data: ", err)
 		return nil, err
 	}
-	return TryEncodeToDataAvailabilityMessage(data)
+
+	daMessage, err := TryEncodeToDataAvailabilityMessage(data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, batchData := range batchesData {
+		hash := crypto.Keccak256Hash(batchData)
+		err = d.storeDataAvailabilityMessage(ctx, hash, daMessage)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return daMessage, nil
 }
 
 // GetSequence gets blob data from the EigenDA layer and decodes the blob data into
@@ -143,8 +158,7 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	return batchesData, nil
 }
 
-// StoreDataAvailabilityMessage stores the data availaiblity message into storage
-func (d *DataAvailabilityProvider) StoreDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
+func (d *DataAvailabilityProvider) storeDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
 	// Store blob information inside in-memory DA storage
 	err := d.state.Add(batchHash, dataAvailabilityMessage)
 	if err != nil {

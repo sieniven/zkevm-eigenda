@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sieniven/zkevm-eigenda/etherman/types"
 )
 
@@ -31,27 +30,10 @@ func New(cfg Config, backend DABackender) *DataAvailability {
 func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
 	// Pre-process sequence data to send to the DA layer
 	batchesData := [][]byte{}
-	batchesHash := []common.Hash{}
 	for _, batch := range sequences {
-		hash := crypto.Keccak256Hash(batch.BatchL2Data)
 		batchesData = append(batchesData, batch.BatchL2Data)
-		batchesHash = append(batchesHash, hash)
 	}
-
-	msg, err := d.backend.PostSequence(ctx, batchesData)
-	if err != nil {
-		return nil, err
-	}
-
-	// Index the DA blob information to the batch hash in storage
-	for _, hash := range batchesHash {
-		err = d.backend.StoreDataAvailabilityMessage(ctx, hash, msg)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return msg, nil
+	return d.backend.PostSequence(ctx, batchesData)
 }
 
 // GetBatchL2Data in the zkevm node implementation tries to return the data from a batch in the following

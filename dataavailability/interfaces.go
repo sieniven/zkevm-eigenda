@@ -11,7 +11,6 @@ type DABackender interface {
 	SequenceRetriever
 	SequenceSender
 	BlobRetriever
-	DataAvailabilityStorage
 	// Init initializes the DABackend
 	Init() error
 }
@@ -32,11 +31,6 @@ type SequenceRetriever interface {
 // BlobRetriever is used to retrieve data availability message from EigenDA blob request ID
 type BlobRetriever interface {
 	GetDataAvailabilityMessageFromId(ctx context.Context, requestID []byte) ([]byte, error)
-}
-
-type DataAvailabilityStorage interface {
-	// Stores the batch's blob information sent to the DA layer to the backend storage
-	StoreDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error
 }
 
 // BatchDataProvider is used to retrieve batch data
