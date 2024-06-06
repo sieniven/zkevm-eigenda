@@ -11,6 +11,7 @@ import (
 	disperser_rpc "github.com/Layr-Labs/eigenda/api/grpc/disperser"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sieniven/zkevm-eigenda/dataavailability"
+	"github.com/sieniven/zkevm-eigenda/log"
 )
 
 var (
@@ -60,16 +61,16 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	blobData := EncodeSequence(batchesData)
 	_, idBytes, err := d.client.DisperseBlob(ctx, blobData, []uint8{})
 	if err != nil {
-		fmt.Println("failed to send blob to EigenDA disperser: ", err)
+		log.Error("failed to send blob to EigenDA disperser: ", err)
 		return nil, err
 	}
-	fmt.Println("sent blob to EigenDA disperser, request id: ", base64.StdEncoding.EncodeToString(idBytes))
+	log.Debug("sent blob to EigenDA disperser, request id: ", base64.StdEncoding.EncodeToString(idBytes))
 
 	var blobStatusReply *disperser_rpc.BlobStatusReply
 	for {
 		blobStatusReply, err = d.client.GetBlobStatus(ctx, idBytes)
 		if err != nil {
-			fmt.Printf("error getting blob status: %v\n", err)
+			log.Error("error getting blob status: %v\n", err)
 			return nil, err
 		}
 
@@ -96,7 +97,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 	info := blobStatusReply.GetInfo()
 	data, err := GetBlobData(info)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Error getting blob data: ", err)
 		return nil, err
 	}
 	return TryEncodeToDataAvailabilityMessage(data)
@@ -118,7 +119,7 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	// Try decoding data availability message
 	blobData, err := TryDecodeFromDataAvailabilityMessage(dataAvailabilityMessage)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Error decoding from da message: ", err)
 		return nil, err
 	}
 	batchHeaderHash, err := blobData.BlobVerificationProof.BatchMetadata.GetBatchHeaderHash()
@@ -128,7 +129,7 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 
 	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
-		fmt.Printf("failed to retrieve blob: %v\n", err)
+		log.Error("Error retrieving blob from EigenDA disperser: ", err)
 		return nil, err
 	}
 	data, _ := DecodeSequence(reply.GetData())
@@ -142,7 +143,7 @@ func (d *DataAvailabilityProvider) StoreDataAvailabilityMessage(ctx context.Cont
 	// Store blob information inside in-memory DA storage
 	err := d.state.Add(batchHash, dataAvailabilityMessage)
 	if err != nil {
-		fmt.Printf("error adding data availability message into storage: %v\n", err)
+		log.Error("Error storing data availability message: ", err)
 		return err
 	}
 
@@ -154,22 +155,27 @@ func (d *DataAvailabilityProvider) StoreDataAvailabilityMessage(ctx context.Cont
 func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash common.Hash) ([]byte, error) {
 	msg, err := d.state.Get(hash)
 	if err != nil {
-		fmt.Println("failed to get blob info from DA storage")
+		log.Error("Error calculating batch header hash from blob data: ", err)
 		return nil, err
 	}
+	if msg == nil {
+		return nil, fmt.Errorf("DA message not found")
+	}
+
 	blobData, err := TryDecodeFromDataAvailabilityMessage(msg)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Error decoding from da message: ", err)
 		return nil, err
 	}
 	batchHeaderHash, err := blobData.BlobVerificationProof.BatchMetadata.GetBatchHeaderHash()
 	if err != nil {
+		log.Error("Error calculating batch header hash from blob data: ", err)
 		return nil, err
 	}
 
 	reply, err := d.client.RetrieveBlob(ctx, batchHeaderHash, blobData.BlobVerificationProof.BlobIndex)
 	if err != nil {
-		fmt.Printf("failed to retrieve blob: %v\n", err)
+		log.Error("Error retrieving blob from EigenDA disperser: ", err)
 		return nil, err
 	}
 	data := reply.GetData()
@@ -188,7 +194,7 @@ func (d *DataAvailabilityProvider) GetBatchL2Data(ctx context.Context, hash comm
 func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.Context, requestId []byte) ([]byte, error) {
 	blobStatusReply, err := d.client.GetBlobStatus(ctx, requestId)
 	if err != nil {
-		fmt.Printf("error getting blob status: %v\n", err)
+		log.Error("Error getting blob status from EigenDA disperser: ", err)
 		return nil, err
 	}
 
@@ -202,7 +208,6 @@ func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.
 	info := blobStatusReply.GetInfo()
 	blobData, err := GetBlobData(info)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
