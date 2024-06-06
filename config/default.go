@@ -30,4 +30,5 @@ Port = 443
 Timeout = "30s"
 UseSecureGrpcFlag = true
 RetrieveBlobStatusPeriod = "5s"
+BlobStatusConfirmedTimeout = "15m"
 `
