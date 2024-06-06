@@ -40,7 +40,7 @@ func TestDisperserClientDisperseBlobWithStringData(t *testing.T) {
 }
 
 func TestDisperserClientDisperseBlobWithRandomData(t *testing.T) {
-	cfg := Config{
+	cfg := dataavailability.Config{
 		Hostname:          "disperser-holesky.eigenda.xyz",
 		Port:              "443",
 		Timeout:           types.NewDuration(30 * time.Second),
