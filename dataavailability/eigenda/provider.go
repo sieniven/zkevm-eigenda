@@ -114,7 +114,7 @@ func (d *DataAvailabilityProvider) PostSequence(ctx context.Context, batchesData
 
 	for _, batchData := range batchesData {
 		hash := crypto.Keccak256Hash(batchData)
-		err = d.storeDataAvailabilityMessage(ctx, hash, daMessage)
+		err = d.storeDataAvailabilityMessage(hash, daMessage)
 		if err != nil {
 			return nil, err
 		}
@@ -156,17 +156,6 @@ func (d *DataAvailabilityProvider) GetSequence(ctx context.Context, batchHashes 
 	batchesData = append(batchesData, data...)
 
 	return batchesData, nil
-}
-
-func (d *DataAvailabilityProvider) storeDataAvailabilityMessage(ctx context.Context, batchHash common.Hash, dataAvailabilityMessage []byte) error {
-	// Store blob information inside in-memory DA storage
-	err := d.state.Add(batchHash, dataAvailabilityMessage)
-	if err != nil {
-		log.Error("Error storing data availability message: ", err)
-		return err
-	}
-
-	return nil
 }
 
 // GetBatchL2Data returns the data from the EigenDA layer operators. It checks the DA storage to get the
@@ -231,4 +220,15 @@ func (d *DataAvailabilityProvider) GetDataAvailabilityMessageFromId(ctx context.
 	}
 
 	return TryEncodeToDataAvailabilityMessage(blobData)
+}
+
+func (d *DataAvailabilityProvider) storeDataAvailabilityMessage(batchHash common.Hash, dataAvailabilityMessage []byte) error {
+	// Store blob information inside in-memory DA storage
+	err := d.state.Add(batchHash, dataAvailabilityMessage)
+	if err != nil {
+		log.Error("Error storing data availability message: ", err)
+		return err
+	}
+
+	return nil
 }
