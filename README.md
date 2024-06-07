@@ -1,6 +1,6 @@
 # Polygon zkEVM Node with EigenDA Layer
 
-## Design
+## PoC Design
 
 - Proof of concept for using EigenDA layer for off-chain data availability with Polygon CDK zkEVM node.
 - Contains a minimal zkevm node for mock batch sequencing for the PoC.
@@ -14,7 +14,7 @@
 - Implements EigenDAVerifier contract that implements the [`IDataAvailabilityProtocol`](https://github.com/0xPolygonHermez/zkevm-contracts/blob/1ad7089d04910c319a257ff4f3674ffd6fc6e64e/contracts/v2/interfaces/IDataAvailabilityProtocol.sol) interface
 - To maintain backwards compatibility, the EigenDAVerifier contract is designed for an adaptor pattern verifies on-chain the data availability proofs with the EigenDAServiceManager.
 
-## Current testnet deployment
+## Testnet deployment
 
 The current testnet deployment is on Ethereum Holesky, with the deployed contract addresses below.
 
