@@ -1,4 +1,4 @@
-# EigenDA Layer Integration with Polygon zkEVM Validium
+# EigenDA Layer Integration with zkEVM Validium Node
 
 ## PoC Design
 
