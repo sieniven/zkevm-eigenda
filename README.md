@@ -1,8 +1,8 @@
-# Polygon zkEVM Node with EigenDA Layer
+# EigenDA Layer Integration with Polygon zkEVM Validium
 
 ## PoC Design
 
-- Proof of concept for using EigenDA layer for off-chain data availability with Polygon CDK zkEVM node.
+- Proof of concept for using EigenDA layer as the data availability provider for off-chain data availability with Polygon CDK zkEVM validium node.
 - Contains a minimal zkevm node for mock batch sequencing for the PoC.
 - Full integration of off-chain pipeline for submitting L2 batches data to EigenDA layer for off-chain data availability solution.
 - Pipeline to retrieval client to retrieve EigenDA blobs and decode into zkevm L2 batches data.
