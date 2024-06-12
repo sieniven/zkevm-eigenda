@@ -16,7 +16,7 @@
 
 ## Testnet deployment
 
-The current testnet deployment is on Ethereum Holesky, with the deployed contract addresses below.
+The PoC is verified on Ethereum Holesky with the deployed contract addresses below.
 
 | Name | Address |
 | ----------- | ----------- |
