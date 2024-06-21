@@ -4,11 +4,11 @@
 
 - Proof of concept for using EigenDA layer as the data availability provider for off-chain data availability with Polygon CDK zkEVM validium node.
 - Full on-chain solution to integrate EigenDA blob verification pipeline with existing Polygon zkevm-validium interfaces for sequence verification.
-  - Implements EigenDAVerifier contract that implements the [`IDataAvailabilityProtocol`](https://github.com/0xPolygonHermez/zkevm-contracts/blob/1ad7089d04910c319a257ff4f3674ffd6fc6e64e/contracts/v2/interfaces/IDataAvailabilityProtocol.sol) interface
-  - To maintain backwards compatibility, the EigenDAVerifier contract is designed for an adaptor pattern verifies on-chain the data availability proofs with the EigenDAServiceManager.
+- Implements EigenDAVerifier contract that implements the [`IDataAvailabilityProtocol`](https://github.com/0xPolygonHermez/zkevm-contracts/blob/1ad7089d04910c319a257ff4f3674ffd6fc6e64e/contracts/v2/interfaces/IDataAvailabilityProtocol.sol) interface
+- To maintain backwards compatibility, the EigenDAVerifier contract is designed for an adaptor pattern verifies on-chain the data availability proofs with the EigenDAServiceManager.
 - Full off-chain pipeline integration for submitting L2 batches data to EigenDA layer as our off-chain data availability solution.
-  - Contains a minimal zkevm node sequencer and sequence sender services for mock batch sequencing to validate the functionality of the PoC.
-  - Pipeline to retrieval client to retrieve EigenDA blobs and decode into zkevm L2 batches data.
+- Contains a minimal zkevm node sequencer and sequence sender services for mock batch sequencing to validate the functionality of the PoC.
+- Pipeline to retrieval client to retrieve EigenDA blobs and decode into zkevm L2 batches data.
 
 ## Testnet deployment
 
