@@ -122,7 +122,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	gProviders := []ethereum.GasPricer{ethClient}
 
 	// get RollupID
-	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
+	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.RollupManagerAddr)
 	if err != nil {
 		fmt.Printf("error rollupManager.RollupAddressToID(%s)\n", l1Config.RollupManagerAddr)
 	}
